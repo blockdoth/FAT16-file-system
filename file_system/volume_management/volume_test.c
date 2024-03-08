@@ -1,7 +1,7 @@
-#include "../include/volume_test.h"
+#include "volume_test.h"
 
-bool test_volume(raw_volume* volume){
-    Block data_1 = {
+bool test_volume(RawVolume* volume){
+    dataBlock data_1 = {
             "Hello world",
             12
     };

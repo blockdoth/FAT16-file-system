@@ -5,11 +5,12 @@ set(CMAKE_C_STANDARD 23)
 
 add_executable(file_system
         main.c
-        include/file_system.h
+        file_system/file_system.h
         file_system/file_system.c
-        include/volume.h
-        file_system/volume.c
-        file_system/volume_test.c
-        include/FAT16.h
+        file_system/volume_management/volume.h
+        file_system/volume_management/volume.c
+        file_system/volume_management/volume_test.c
+        file_system/file_system_implementations/FAT16.h
+        file_system/file_system_implementations/FAT16.c
 
 )

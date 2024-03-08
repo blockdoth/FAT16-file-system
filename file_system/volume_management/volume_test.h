@@ -11,10 +11,10 @@
 #include "stdio.h"
 #endif
 
-typedef struct Block {
+typedef struct dataBlock {
     char* data;
     uint32_t size;
-} Block;
+} dataBlock;
 
-bool test_volume(raw_volume* volume);
+bool test_volume(RawVolume* volume);
 
