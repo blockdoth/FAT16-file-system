@@ -1,55 +1,45 @@
 #include <stdio.h>
 #include "FAT16.h"
-#include "../volume_management/volume.h"
-
 #include "../file_system.h"
-#include "stdio.h"
 
 #define DEBUG
 
 
 
-FormattedVolume* format_FAT16_volume(RawVolume *volume) {
+FormattedVolume* formatFAT16Volume(RawVolume *volume) {
     if(check_FAT16_formattible(volume)){
         return (void*)0;
     }
     printf("Formatting a volume of size %u\n", volume->volumeSize);
 
-    BootSector bootSector = prep_bootsector_struct();
-    bootSector.totalSectorCount32 = calculateTotalSectorCount(&bootSector, volume->volumeSize);
-    // IMPORTANT only do this after setting bootSector.totalSectorCount32
-    bootSector.sectorsPersFAT = calculateSectorsPerFAT(&bootSector);
+    BootSector bootSector = initBootSectorStruct(volume->volumeSize);
+    FATVolumeInfo volumeInfo = initFATVolumeInfo(bootSector);
 
-    //Writing the boot sector
-
+    // Write the bootsector to the volume
     volume->write(volume, &bootSector,0, sizeof(bootSector));
     #ifdef DEBUG
     BootSector* returnedBootSector = (BootSector*) volume->read(volume, 0, sizeof(bootSector));
     printBootSector(returnedBootSector);
     #endif
-    uint32_t FATTablesSize = bootSector.totalSectorCount32*2;
-    uint32_t rootSectorCount = (bootSector.rootEntryCount * 32)/512;
-    //Zero out FAT tables (both of them)
-    volume->write(volume, NULL,bootSector.reservedSectorCount, FATTablesSize);
-    //Zero out root directory
-    volume->write(volume,NULL,bootSector.reservedSectorCount + FATTablesSize,rootSectorCount);
 
-    // Set the first cluster to 0xFFF8, indicating the first cluster of a file
-    // Set the second cluster to 0xFFFF, indicating the end of a cluster chain
-    // IMPORTANT! Must be converted to little endian
+    //Zero out FAT tables (both of them)
+    volume->write(volume, NULL,volumeInfo.FAT1Address, 2 * volumeInfo.FATSize);
+    //Zero out root directory
+    volume->write(volume,NULL,volumeInfo.rootSectorAddress,volumeInfo.rootSectorCount);
+
 
     uint16_t firstSectors[] = {
             swapEndianness16Bit(0xFFF8),
             swapEndianness16Bit(0xFFFF)
-//            swapEndianness16Bit(0x0134),
-//            swapEndianness16Bit(0x5678)
     };
-
-    volume->write(volume, &firstSectors, bootSector.reservedSectorCount, 4);
-    volume->write(volume, &firstSectors, bootSector.reservedSectorCount + FATTablesSize, 4);
+    // Set the first cluster to 0xFFF8, indicating the first cluster of a file
+    // Set the second cluster to 0xFFFF, indicating the end of a cluster chain
+    // IMPORTANT! Must be converted to little endian
+    volume->write(volume, &firstSectors, volumeInfo.FAT1Address, 4);
+    volume->write(volume, &firstSectors, volumeInfo.FAT2Address, 4);
 
     #ifdef DEBUG
-    printFATTable(&bootSector, volume);
+    printFATTable(&volumeInfo, volume);
     #endif
     FormattedVolume formattedVolume = {
             volume,
@@ -59,7 +49,30 @@ FormattedVolume* format_FAT16_volume(RawVolume *volume) {
     return &formattedVolume; //TODO make this work once I figured out what to do with formattedVolume
 }
 
-void printFATTable(BootSector *bootSector, RawVolume* volume){
+FATVolumeInfo initFATVolumeInfo(BootSector bootSector) {
+    uint32_t FATSize = bootSector.totalSectorCount16 - bootSector.reservedSectorCount;
+    volume_ptr rootSectorStart = bootSector.reservedSectorCount + FATSize * bootSector.numberOfFATs;
+    uint32_t rootSectorCount = ((bootSector.rootEntryCount * 32)+(bootSector.bytesPerSector - 1)) /bootSector.bytesPerSector;
+    uint32_t totalAddressableSize = (FATSize * bootSector.sectorsPerCluster * bootSector.bytesPerSector);
+    return (FATVolumeInfo) {
+            bootSector.reservedSectorCount,
+            bootSector.reservedSectorCount + FATSize,
+            FATSize,
+            rootSectorStart,
+            rootSectorCount,
+            rootSectorStart + rootSectorCount,
+            totalAddressableSize
+    };
+}
+
+
+volume_ptr findNextFreeCluster(RawVolume* volume){
+
+}
+
+
+
+void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume){
     printf("┌─────────────────────────┐\n");
     printf("│ Entry  Cluster          │\n");
     printf("├─────────────────────────┤\n");
@@ -69,7 +82,7 @@ void printFATTable(BootSector *bootSector, RawVolume* volume){
     bool searching = true;
     while(searching){
         entry = swapEndianness16Bit(
-                *(uint16_t*) volume->read(volume, bootSector->reservedSectorCount + i * 2, 16)
+                *(uint16_t*) volume->read(volume, volumeInfo->FAT1Address + i * 2, 2)
                 );
         switch (entry) {
             case 0x0000:
@@ -87,7 +100,7 @@ void printFATTable(BootSector *bootSector, RawVolume* volume){
                 break;
             default:
                 if (entry >= 0x0001 && entry <= 0xFFEF) {
-                    printf("│ %u \t 0x%02X\t\t│\n", i, entry);
+                    printf("│ %u \t 0x%02X\t\t  │\n", i, entry);
                 } else if (entry >= 0xFFF0 && entry <= 0xFFF6) {
                     printf("│ %u \t Reserved Value │\n", i);
                 }
@@ -95,6 +108,12 @@ void printFATTable(BootSector *bootSector, RawVolume* volume){
         }
         i++;
     }
+
+
+    printf("│ ...    ...              │\n");
+    printf("│ %u  Total Clusters\t  │\n", volumeInfo->FATSize);
+    printf("├─────────────────────────┤\n");
+    printf("│ Total Addressable %uMB │\n", volumeInfo->totalAddressableSize / 8388608);
     printf("└─────────────────────────┘\n");
 
 }
@@ -116,7 +135,7 @@ void printBootSector(BootSector *bs) {
     printf("│ Sectors per Track:\t  %u\t\t  │\n", bs->sectorsPerTrack);
     printf("│ Number of Heads:\t  %u\t\t  │\n", bs->numberOfHeads);
     printf("│ Hidden Sectors:\t  %u\t\t  │\n", bs->hiddenSectors);
-    printf("│ Total Sector Count 32:  %u\t  │\n", bs->totalSectorCount32);
+    printf("│ Total Sector Count 32:  %u\t\t  │\n", bs->totalSectorCount32);
     printf("│ Drive Number:\t\t  %u\t\t  │\n", bs->driveNumber);
     printf("│ Reserved:\t\t  %u\t\t  │\n", bs->reserved);
     printf("│ Boot Signature:\t  0x%02X\t\t  │\n", bs->bootSignature);
@@ -128,12 +147,12 @@ void printBootSector(BootSector *bs) {
 
 
 
-BootSector prep_bootsector_struct(){
-    return (BootSector){
+BootSector initBootSectorStruct(uint32_t volumeSize){
+    BootSector bootSector = {
             {0xEB, 0x00, 0x90},
             "MSWIN4.1",
-            512,
-            32,
+            4096,
+            64,
             1,
             2,
             512,
@@ -151,6 +170,10 @@ BootSector prep_bootsector_struct(){
             "NO NAME    ",
             "FAT16      "
     };
+    bootSector.totalSectorCount16 = 0xFFFF; //volume->volumeSize / bootSector.bytesPerSector;
+    bootSector.sectorsPersFAT =
+            (bootSector.totalSectorCount16 - bootSector.reservedSectorCount) / bootSector.sectorsPerCluster;
+    return bootSector;
 }
 
 FAT16File prep_FAT16File_struct(){
@@ -210,13 +233,7 @@ unsigned char directoryNameChecksum (unsigned char *name){
 //    return bootSector->totalSectorCount32 - bootSectorDataAddress(bootSector) / bootSector->bytesPerSector;
 //}
 
-uint32_t calculateSectorsPerFAT(BootSector *bootSector){
-    return (bootSector->totalSectorCount32 - bootSector->reservedSectorCount) / bootSector->sectorsPerCluster;
-}
 
-uint32_t calculateTotalSectorCount(BootSector *bootSector, uint32_t volumeSize){
-    return volumeSize / bootSector->bytesPerSector;
-}
 
 uint16_t getCurrentTimeMs(){
     return 0; //TODO

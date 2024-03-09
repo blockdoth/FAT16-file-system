@@ -8,38 +8,8 @@
 #include "stdbool.h"
 #endif
 
-//#define DEBUG //Enable debug mode
-
-#ifdef DEBUG
+#define DEBUG_VOLUME //Enable debug mode
 #define DEBUG_BUFFER_SIZE 50
-// Allocates and truncates a string
-#define ALLOTRUNCATE(string, dataSize) \
-    char buffer[DEBUG_BUFFER_SIZE + 4];                     \
-    snprintf(buffer, DEBUG_BUFFER_SIZE + 4, "%s", string);\
-    if(dataSize > DEBUG_BUFFER_SIZE){             \
-        strcpy(buffer+DEBUG_BUFFER_SIZE, "..."); \
-    }
-// Debug macro's for all supported volume operations
-#define INIT_DEBUG_LOG(volumeSize) \
-    printf("Created a volume of size %u\n", (volumeSize))
-#define DESTROY_DEBUG_LOG(volumeSize) \
-    printf("Destroyed a volume of size %u\n", (volumeSize))
-#define READ_DEBUG_LOG(sourceAddress, dataSize, dataAddress) \
-    ALLOTRUNCATE(dataAddress, dataSize)\
-    printf("Reading [%s] of size %u from address %u\n", buffer, dataSize, sourceAddress)
-#define WRITE_DEBUG_LOG(sourceAddress, destinationAddress, dataSize) \
-    ALLOTRUNCATE(sourceAddress, dataSize)\
-    printf("Writing [%s] of size %u to address %u\n", buffer, dataSize, destinationAddress)
-#define CLEAR_DEBUG_LOG(destinationAddress, dataSize) \
-    printf("Clearing memory from address %u to %u\n", destinationAddress, destinationAddress + dataSize)
-#else
-#define INIT_DEBUG_LOG(x) ((void)0)
-#define DESTROY_DEBUG_LOG(x) ((void)0)
-#define READ_DEBUG_LOG(x,y,z) ((void)0)
-#define WRITE_DEBUG_LOG(x,y,z) ((void)0)
-#define CLEAR_DEBUG_LOG(x,y) ((void)0)
-#endif
-
 
 typedef enum VOLUME_TYPE{
     RAM_DISK,
@@ -87,5 +57,13 @@ bool prep_init(RawVolume* self, uint32_t volumeSize);
 void prep_destroy(RawVolume* self);
 bool prep_write(RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize);
 void* prep_read(RawVolume* self, volume_ptr sourceAddress, uint32_t dataSize);
+
+void allowtruncate(char buffer[DEBUG_BUFFER_SIZE], uint8_t* string, uint32_t dataSize);
+void initDebugLog(uint32_t volumeSize);
+void destroyDebugLog(uint32_t volumeSize);
+void readDebugLog(volume_ptr sourceAddress, uint32_t dataSize, void *dataAddress);
+void writeDebugLog(void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize);
+void clearDebugLog(volume_ptr destinationAddress, uint32_t dataSize);
+
 
 #endif //FILE_SYSTEM_VOLUME_H

@@ -58,11 +58,11 @@ bool ramdisk_init(RawVolume* self, uint32_t volume_size){
         return 1;
     }
     self->volumeSize = volume_size;
-    INIT_DEBUG_LOG(volume_size);
+    initDebugLog(volume_size);
     return 0;
 }
 void ramdisk_destroy(RawVolume* self){
-    DESTROY_DEBUG_LOG(self->volumeSize);
+    initDebugLog(self->volumeSize);
     free(self->volumeData);
     free(self);
 }
@@ -73,10 +73,10 @@ bool ramdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationA
     }
     uint32_t* destination = (uint32_t*) (self->volumeData + destinationAddress);
     if(sourceAddress == NULL){
-        CLEAR_DEBUG_LOG(destinationAddress, size);
+        clearDebugLog(destinationAddress, size);
         memset(destination,0, size);
     }else{
-        WRITE_DEBUG_LOG((char*) sourceAddress, destinationAddress, size);
+        writeDebugLog((char*) sourceAddress, destinationAddress, size);
         memcpy(destination,sourceAddress,size);
     }
     return 0;
@@ -93,7 +93,7 @@ void* ramdisk_read(RawVolume* self, volume_ptr sourceAddress, uint32_t size){
     uint32_t* source = (uint32_t*) (self->volumeData + sourceAddress);
     memcpy(chunk,source,size);
 
-    READ_DEBUG_LOG(sourceAddress, size, (char*) chunk);
+    readDebugLog(sourceAddress, size, (char*) chunk);
     return chunk;
 }
 
@@ -102,4 +102,49 @@ RawVolume* prep_flash_drive(){
     assert(0 && "TODO");
 }
 
-#undef DEBUG
+
+void allowtruncate(char buffer[DEBUG_BUFFER_SIZE], uint8_t * string, uint32_t dataSize) {
+    for (uint8_t i = 0; i * 2 < DEBUG_BUFFER_SIZE && i < dataSize; i++) {
+        snprintf(buffer + i * 2,3,"%02x",string[i] );
+    }
+    if (dataSize > DEBUG_BUFFER_SIZE) {
+        strncpy(buffer + DEBUG_BUFFER_SIZE - 4, "...", 3);
+        buffer[DEBUG_BUFFER_SIZE - 1] = '\0';
+    }
+}
+
+void initDebugLog(uint32_t volumeSize) {
+    #ifdef DEBUG_VOLUME
+    printf("Created a volume of size %u\n", volumeSize);
+    #endif
+}
+
+void destroyDebugLog(uint32_t volumeSize) {
+    #ifdef DEBUG_VOLUME
+    printf("Destroyed a volume of size %u\n", volumeSize);
+    #endif
+}
+
+void readDebugLog(volume_ptr sourceAddress, uint32_t dataSize, void *dataAddress) {
+    #ifdef DEBUG_VOLUME
+    char buffer[DEBUG_BUFFER_SIZE];
+    allowtruncate(buffer, dataAddress, dataSize);
+    printf("Reading [0x%s] of size %u from address %u\n",buffer, dataSize, sourceAddress);
+    #endif
+}
+
+void writeDebugLog(void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize) {
+    #ifdef DEBUG_VOLUME
+    char buffer[DEBUG_BUFFER_SIZE];
+    allowtruncate(buffer, sourceAddress, dataSize);
+    printf("Writing [0x%s] of size %u to address %u\n", buffer, dataSize, destinationAddress);
+    #endif
+}
+
+void clearDebugLog(volume_ptr destinationAddress, uint32_t dataSize) {
+    #ifdef DEBUG_VOLUME
+    printf("Clearing memory from address %u to %u\n", destinationAddress, destinationAddress + dataSize);
+    #endif
+}
+
+#undef DEBUG_VOLUME

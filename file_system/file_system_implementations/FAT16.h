@@ -8,6 +8,7 @@
 #include "../volume_management/volume.h"
 
 #define FAT16_MINIMUM_SIZE 1024
+#define FAT16_MAXIMUM_SIZE 17179869184
 
 
 typedef struct BootSector {
@@ -72,7 +73,18 @@ enum DirectoryAttributes {
 };
 
 
-BootSector prep_bootsector_struct();
+typedef struct FATVolumeInfo {
+    volume_ptr FAT1Address;
+    volume_ptr FAT2Address;
+    uint32_t FATSize;
+    volume_ptr rootSectorAddress;
+    uint32_t rootSectorCount;
+    volume_ptr dataSectorAddress;
+    uint32_t totalAddressableSize;
+
+} FATVolumeInfo;
+
+BootSector initBootSectorStruct(uint32_t volumeSize);
 
 unsigned char directoryNameChecksum(unsigned char *name);
 uint32_t bootSectorFATAddress(BootSector *bootSector);
@@ -80,15 +92,16 @@ uint32_t bootSectorRootAddress(BootSector *bootSector);
 uint32_t bootSectorDataAddress(BootSector *bootSector);
 uint32_t bootSectorDataSectorCount(BootSector *bootSector);
 uint32_t calculateSectorsPerFAT(BootSector *bootSector);
-uint32_t calculateTotalSectorCount(BootSector *bootSector, uint32_t volumeSize);
+uint32_t calculateTotalSectorCount(BootSector *bootSector);
 
 uint16_t getCurrentTimeMs();
 uint16_t getCurrentTime();
 uint16_t getCurrentDate();
 
 void printBootSector(BootSector *bootSector);
-void printFATTable(BootSector *bootSector, RawVolume* volume);
+void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume);
 
+FATVolumeInfo initFATVolumeInfo(BootSector bootSector);
 
 // TODO remove when this gets added to Delft-OS
 uint16_t swapEndianness16Bit(uint16_t num) {

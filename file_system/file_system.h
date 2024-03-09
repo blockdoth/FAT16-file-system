@@ -16,7 +16,7 @@ typedef struct FormattedVolume {
 } FormattedVolume;
 
 FormattedVolume* format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
-FormattedVolume* format_FAT16_volume(RawVolume *pVolume);
+FormattedVolume* formatFAT16Volume(RawVolume *volume);
 
 bool check_FAT16_formattible(RawVolume *raw_volume);
 
