@@ -5,7 +5,7 @@
 #include "stdint.h"
 #endif
 
-#include "../volume_management/volume.h"
+#include "../file_system.h"
 
 #define FAT16_MINIMUM_SIZE 1024
 #define FAT16_MAXIMUM_SIZE 17179869184
@@ -73,43 +73,37 @@ enum DirectoryAttributes {
 };
 
 
-typedef struct FATVolumeInfo {
-    volume_ptr FAT1Address;
-    volume_ptr FAT2Address;
-    uint32_t FATSize;
-    volume_ptr rootSectorAddress;
-    uint32_t rootSectorCount;
-    volume_ptr dataSectorAddress;
-    uint32_t totalAddressableSize;
 
-} FATVolumeInfo;
 
-BootSector initBootSectorStruct(uint32_t volumeSize);
+
+BootSector initBootSector(uint32_t volumeSize);
 
 unsigned char directoryNameChecksum(unsigned char *name);
-uint32_t bootSectorFATAddress(BootSector *bootSector);
-uint32_t bootSectorRootAddress(BootSector *bootSector);
-uint32_t bootSectorDataAddress(BootSector *bootSector);
-uint32_t bootSectorDataSectorCount(BootSector *bootSector);
-uint32_t calculateSectorsPerFAT(BootSector *bootSector);
-uint32_t calculateTotalSectorCount(BootSector *bootSector);
 
-uint16_t getCurrentTimeMs();
-uint16_t getCurrentTime();
-uint16_t getCurrentDate();
+
 
 void printBootSector(BootSector *bootSector);
 void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume);
+void printFAT16File(FAT16File *file);
 
-FATVolumeInfo initFATVolumeInfo(BootSector bootSector);
+FATVolumeInfo* initFATVolumeInfo(BootSector bootSector);
 
 // TODO remove when this gets added to Delft-OS
-uint16_t swapEndianness16Bit(uint16_t num) {
-    uint16_t b0, b1;
-    b0 = (num & 0x00ff) << 8u;
-    b1 = (num & 0xff00) >> 8u;
-    return b0 | b1;
-}
+uint16_t swapEndianness16Bit(uint16_t num);
+
+bool check_FAT16_formattible(RawVolume *raw_volume);
+
+
+FormattedVolume * formatFAT16Volume(RawVolume *volume);
+FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInfo);
+
+volume_ptr findNextFreeCluster(FormattedVolume* volume);
+
+bool FAT16Write(FormattedVolume* self, FileMetadata* fileMetadata);
+bool FAT16Read(FormattedVolume* self, FileIdentifier* fileIdentifier);
+
+FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata);
+uint8_t convertToDirAttributes(FileMetadata* file);
 
 
 #endif //FILE_SYSTEM_FAT16_H

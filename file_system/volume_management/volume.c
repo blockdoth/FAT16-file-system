@@ -7,16 +7,16 @@
 RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t size){
     RawVolume* volume = prep_volume(volumeType);
     if(volume->init(volume, size)){
-        printf("Failed to mount volume\n");
+        printf("Failed to mount rawVolume\n");
     }
-    printf("Successfully mounted volume\n");
+    printf("Successfully mounted rawVolume\n");
     return volume;
 }
 
 bool bounds_check(RawVolume* self, uint32_t start_addr, uint32_t size){
     if((start_addr + size) > self->volumeSize){
         if (start_addr > self->volumeSize){
-            printf("ERROR:\t Address %u out of bounds of volume\n", start_addr);
+            printf("ERROR:\t Address %u out of bounds of rawVolume\n", start_addr);
         }else{
             printf("ERROR:\t Allocation of %u to large from start address %u\n", size, start_addr);
         }
@@ -115,13 +115,13 @@ void allowtruncate(char buffer[DEBUG_BUFFER_SIZE], uint8_t * string, uint32_t da
 
 void initDebugLog(uint32_t volumeSize) {
     #ifdef DEBUG_VOLUME
-    printf("Created a volume of size %u\n", volumeSize);
+    printf("Created a rawVolume of size %u\n", volumeSize);
     #endif
 }
 
 void destroyDebugLog(uint32_t volumeSize) {
     #ifdef DEBUG_VOLUME
-    printf("Destroyed a volume of size %u\n", volumeSize);
+    printf("Destroyed a rawVolume of size %u\n", volumeSize);
     #endif
 }
 

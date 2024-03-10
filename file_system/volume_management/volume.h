@@ -8,7 +8,7 @@
 #include "stdbool.h"
 #endif
 
-#define DEBUG_VOLUME //Enable debug mode
+//#define DEBUG_VOLUME //Enable debug mode
 #define DEBUG_BUFFER_SIZE 50
 
 typedef enum VOLUME_TYPE{
@@ -31,14 +31,14 @@ typedef struct RawVolume {
 // Util
 bool bounds_check(RawVolume* self, uint32_t start_addr, uint32_t dataSize);
 
-// Initializes the correct Object based on the volume type
+// Initializes the correct Object based on the rawVolume type
 RawVolume* prep_volume(VOLUME_TYPE volumeType);
-// Initialize the actual volume
+// Initialize the actual rawVolume
 RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t volumeSize);
 
 // RAM Disk functions
 
-// Initializes a ran disk volume object
+// Initializes a ran disk rawVolume object
 RawVolume* prep_ram_disk();
 
 // Allocate a chunk of memory to create a RAM disk
@@ -64,6 +64,7 @@ void destroyDebugLog(uint32_t volumeSize);
 void readDebugLog(volume_ptr sourceAddress, uint32_t dataSize, void *dataAddress);
 void writeDebugLog(void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize);
 void clearDebugLog(volume_ptr destinationAddress, uint32_t dataSize);
+
 
 
 #endif //FILE_SYSTEM_VOLUME_H
