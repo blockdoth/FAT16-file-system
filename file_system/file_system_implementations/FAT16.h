@@ -109,6 +109,7 @@ uint8_t convertToDirAttributes(FileMetadata* file);
 void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr startSector, volume_ptr endSector);
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
 void writeFATS(FormattedVolume* self, volume_ptr FATAddress, void *nextSector);
+void* readSector(FormattedVolume* self, volume_ptr sector);
 
 
 #endif //FILE_SYSTEM_FAT16_H

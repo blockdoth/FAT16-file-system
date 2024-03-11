@@ -68,7 +68,7 @@ typedef void* system_file_data;
 bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
 
 bool fs_create_file(system_file_metadata* systemFile, void* file_data);
-bool fs_read_file(system_file_metadata* systemFile);
+void* fs_read_file(system_file_metadata* systemFile);
 
 
 uint16_t getCurrentTimeMs();

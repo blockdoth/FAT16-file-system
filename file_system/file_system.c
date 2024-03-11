@@ -34,8 +34,9 @@ bool fs_create_file(system_file_metadata* systemFile, void* file_data){
             systemFile->fileSize,
     };
     formatted_volume->write(formatted_volume, &fileMetadata, file_data);
+    return true;
 }
-bool fs_read_file(system_file_metadata* systemFile){
+void* fs_read_file(system_file_metadata* systemFile){
     FileMetadata fileMetadata= {
             systemFile->name,
             systemFile->read_only,

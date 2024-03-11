@@ -8,7 +8,7 @@
 #include "stdbool.h"
 #endif
 
-#define DEBUG_VOLUME //Enable debug mode
+//#define DEBUG_VOLUME //Enable debug mode
 #define DEBUG_BUFFER_SIZE 50
 
 typedef enum VOLUME_TYPE{
