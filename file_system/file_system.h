@@ -14,12 +14,12 @@ typedef struct FATVolumeInfo {
     volume_ptr FAT2Address;
     uint32_t FATClusters;
     volume_ptr rootSectorAddress;
+    uint32_t freeRootSector;
     uint32_t rootSectorCount;
     volume_ptr dataSectorAddress;
     uint64_t totalAddressableSize;
     uint16_t bytesPerSector;
     uint8_t sectorsPerCluster;
-
 } FATVolumeInfo;
 
 typedef struct FileMetadata {
@@ -54,21 +54,31 @@ typedef struct system_file {
     uint8_t archive : 1;
     uint8_t long_name : 1;
     uint32_t fileSize;
-} system_file;
+} system_file_metadata;
 
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
-    bool (*write)( struct FormattedVolume* self, FileMetadata* fileMetadata);
-    void* (*read)( struct FormattedVolume* self, FileIdentifier* fileIdentifier);
+    bool (*write)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
+    void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier);
 } FormattedVolume;
+
+typedef void* system_file_data;
 
 bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
 
-bool fs_create_file(system_file* systemFile);
+bool fs_create_file(system_file_metadata* systemFile, void* file_data);
+bool fs_read_file(system_file_metadata* systemFile);
 
 
 uint16_t getCurrentTimeMs();
 uint16_t getCurrentTime();
 uint16_t getCurrentDate();
+
+
+// FILE api
+
+
+
+
 #endif

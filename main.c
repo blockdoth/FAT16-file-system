@@ -19,8 +19,11 @@ int main() {
 
     format_volume(raw_volume, FAT16);
 
-    system_file system_file = {
-            "Hello world",
+    system_file_data file =  "Hello World!";
+    uint32_t file_length = 12;
+
+    system_file_metadata file_metadata = {
+            "file.txt",
             0,
             1,
             0,
@@ -28,12 +31,12 @@ int main() {
             0,
             0,
             0,
-            1024,
+            file_length,
     };
 
 
-    fs_create_file(&system_file);
-
+    fs_create_file(&file_metadata, file);
+    fs_read_file(&file_metadata);
 
 
     return 0;

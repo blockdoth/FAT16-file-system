@@ -42,10 +42,10 @@ typedef struct FAT16File {
     uint16_t creationTime;
     uint16_t creationDate;
     uint16_t lastAccessedDate;
-    uint16_t firstClusterStart;
+    uint16_t fileClusterStart;
     uint16_t timeOfLastWrite;
     uint16_t dateOfLastWrite;
-    uint16_t firstClusterEnd;
+    uint16_t fileClusterEnd;
     uint32_t fileSize;
 } FAT16File; // Total volumeSize: 32 bytes
 
@@ -97,13 +97,18 @@ bool check_FAT16_formattible(RawVolume *raw_volume);
 FormattedVolume * formatFAT16Volume(RawVolume *volume);
 FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInfo);
 
-volume_ptr findNextFreeCluster(FormattedVolume* volume);
+volume_ptr findNextFreeSector(FormattedVolume* volume);
 
-bool FAT16Write(FormattedVolume* self, FileMetadata* fileMetadata);
-bool FAT16Read(FormattedVolume* self, FileIdentifier* fileIdentifier);
+bool FAT16Write(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
+void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata);
+
 
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata);
 uint8_t convertToDirAttributes(FileMetadata* file);
+
+void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr startSector, volume_ptr endSector);
+void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
+void writeFATS(FormattedVolume* self, volume_ptr FATAddress, void *nextSector);
 
 
 #endif //FILE_SYSTEM_FAT16_H
