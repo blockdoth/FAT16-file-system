@@ -23,9 +23,9 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
     #endif
 
     //Zero out FAT tables (both of them)
-    volume->write(volume, NULL,volumeInfo->FAT1Address, 2 * volumeInfo->FATClusters);
+    volume->write(volume, NULL, volumeInfo->FAT1Start, 2 * volumeInfo->FATEntryCount);
     //Zero out root directory
-    volume->write(volume,NULL,volumeInfo->rootSectorAddress,volumeInfo->rootSectorCount);
+    volume->write(volume, NULL, volumeInfo->rootSectionStart, volumeInfo->rootSectorCount);
 
     uint16_t firstSectors[] = {
             swapEndianness16Bit(0xFFF8),
@@ -34,15 +34,15 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
     // Set the first cluster to 0xFFF8, indicating the first cluster of a file
     // Set the second cluster to 0xFFFF, indicating the end of a cluster chain
     // IMPORTANT! Must be converted to little endian
-    volume->write(volume, &firstSectors, volumeInfo->FAT1Address, 4);
-    volume->write(volume, &firstSectors, volumeInfo->FAT2Address, 4);
-
-    #ifdef DEBUG
-    printFATTable(volumeInfo, volume);
-    #endif
+    volume->write(volume, &firstSectors, volumeInfo->FAT1Start, 4);
+    volume->write(volume, &firstSectors, volumeInfo->FAT2Start, 4);
 
     FormattedVolume* formattedVolume = initFormattedVolume(volume, volumeInfo);
+    #ifdef DEBUG
+    printFATTable(formattedVolume);
 
+    printFAT16Layout(formattedVolume);
+    #endif
     return formattedVolume; //TODO make this work once I figured out what to do with formattedVolume
 }
 
@@ -59,22 +59,22 @@ bool FAT16Write(FormattedVolume * self, FileMetadata* fileMetadata, void* fileDa
     volume_ptr currentSector = startSector;
     volume_ptr prevSector;
     volume_ptr currentDataPointer = 0;
-    uint32_t bytesPerSector = self->volumeInfo->bytesPerSector;
+    uint32_t bytesPerCluster = self->volumeInfo->bytesPerSector * self->volumeInfo->sectorsPerCluster;
     uint32_t bytesLeftToWrite = fat16File.fileSize;
-    while (bytesLeftToWrite > bytesPerSector){
+    while (bytesLeftToWrite > bytesPerCluster){
         // Write the data
         writeSector(self,
                     fileData + currentDataPointer,
                     currentSector, //TODO make this not hardcoded
-                    self->volumeInfo->bytesPerSector);
+                    bytesPerCluster);
         prevSector = currentSector;
 
         // Write the address of the next sector to the FATS
         writeFATS(self,prevSector, &currentSector);
         currentSector = findNextFreeSector(self);
 
-        currentDataPointer += bytesPerSector;
-        bytesLeftToWrite -= bytesPerSector;
+        currentDataPointer += bytesPerCluster;
+        bytesLeftToWrite -= bytesPerCluster;
     }
     if(bytesLeftToWrite > 0){
         writeSector(self,
@@ -93,9 +93,10 @@ bool FAT16Write(FormattedVolume * self, FileMetadata* fileMetadata, void* fileDa
     fat16File.fileClusterEnd = currentSector;
 
     #ifdef DEBUG
-    printf("Wrote %s of size %u from sector %u to sector %u\n",
+    printf("Wrote %s of size %u bytes from sector %u to sector %u\n",
            fat16File.name, fat16File.fileSize, startSector, currentSector);
-    printFATTable(self->volumeInfo, self->rawVolume);
+    printFATTable(self);
+    printRootSectorShort(self);
     #endif
 
 
@@ -104,18 +105,26 @@ bool FAT16Write(FormattedVolume * self, FileMetadata* fileMetadata, void* fileDa
 }
 
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize){
-    self->rawVolume->write(self->rawVolume, data, self->volumeInfo->dataSectorAddress + sector * self->volumeInfo->bytesPerSector, dataSize);
+    self->rawVolume->write(self->rawVolume, data, self->volumeInfo->dataSectionStart + sector * self->volumeInfo->bytesPerSector, dataSize);
 }
 
-void writeFATS(FormattedVolume* self, volume_ptr FATAddress, void *nextSector){
-    self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT1Address + 2 * FATAddress, 2);
-    self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT2Address + 2 * FATAddress, 2);
+void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector){
+    self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT1Start + 2 * index, 2);
+    self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT2Start + 2 * index, 2);
 }
 
 void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr startSector, volume_ptr endSector){
     fileMetadata.fileClusterStart = startSector;
     fileMetadata.fileClusterEnd = endSector;
-    self->rawVolume->write(self->rawVolume,&fileMetadata,self->volumeInfo->rootSectorAddress + self->volumeInfo->freeRootSector, 32);
+    FAT16File entry;
+    int32_t i;
+    for(i = 0; i < self->volumeInfo->rootSectorCount; i++) {
+        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+        if(entry.name[0] == 0x00 || entry.name[0] == 0xe5){
+            break;
+        }
+    }
+    self->rawVolume->write(self->rawVolume, &fileMetadata, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
     // TODO this is probably wrong
 }
 
@@ -123,7 +132,7 @@ void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr sta
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
     FAT16File fat16File;
 
-    memcpy(fat16File.name, fileMetadata->name, 11); // TODO support long file names
+    memcpy(fat16File.name, fileMetadata->name, FAT16_ENTRY_BASE_NAME_LENGTH); // TODO support long file names
     fat16File.name[10] = '\0';
 
     fat16File.attributes = convertToDirAttributes(fileMetadata); //TODO write converter
@@ -143,7 +152,7 @@ FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
 FAT16File FAT16FindFile(FormattedVolume* self, char* fileName){
     FAT16File entry;
     for (volume_ptr i = 0; i < self->volumeInfo->rootSectorCount; i++) {
-        entry = *(FAT16File*) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectorAddress + i, 32);
+        entry = *(FAT16File*) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
         if(entry.name[0] != 0x00){
             if(strcmp(entry.name, fileName) == 0){
                 // TODO support the actual FAT16 naming format and longer filenames
@@ -179,7 +188,7 @@ void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata) {
 }
 
 void* readSector(FormattedVolume* self, volume_ptr sector){
-    return self->rawVolume->read(self->rawVolume, self->volumeInfo->dataSectorAddress + sector * self->volumeInfo->bytesPerSector ,self->volumeInfo->bytesPerSector);
+    return self->rawVolume->read(self->rawVolume, self->volumeInfo->dataSectionStart + sector * self->volumeInfo->bytesPerSector , self->volumeInfo->bytesPerSector);
 }
 
 
@@ -198,19 +207,42 @@ uint8_t convertToDirAttributes(FileMetadata* file) {
 }
 
 
-
 volume_ptr findNextFreeSector(FormattedVolume* volume){
     uint16_t entry;
-    for (uint32_t i = 0; i < volume->volumeInfo->FATClusters; i++) {
-        entry = *(uint16_t*) volume->rawVolume->read(volume->rawVolume, volume->volumeInfo->FAT1Address + i * 2, 2);
-        if(entry == 0x0000){
+    for (uint32_t i = 0; i < volume->volumeInfo->FATEntryCount; i++) {
+        entry = *(uint16_t*) volume->rawVolume->read(volume->rawVolume, volume->volumeInfo->FAT1Start + i * 2, FAT16_ENTRY_SIZE);
+        if(entry == 0x00){
             return i;
         }
     }
     return -1;
 }
 
+
 // Debug statements
+
+
+void printRootSectorShort(FormattedVolume* self){
+    printf("┌─────────────────────────────────────────┐\n");
+    printf("│ Root Sectors                            │\n");
+    printf("├─────────────────────────────────────────┤\n");
+
+    FAT16File entry;
+    for(int32_t i = 0; i < self->volumeInfo->rootSectorCount; i++){
+        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+        if(entry.name[0] == 0x00){
+            break;
+        }else if(entry.name[0] == 0xe5){
+            printf("│ %u Deleted file\t%u - %u\t  │\n",i, entry.fileClusterStart, entry.fileClusterEnd);
+        } else{
+            printf("│ %u %s \t%u bytes\t%u - %u\t  │\n",i,entry.name, entry.fileSize, entry.fileClusterStart, entry.fileClusterEnd);
+        }
+    }
+    printf("└─────────────────────────────────────────┘\n");
+
+
+}
+
 
 void printFAT16File(FAT16File *file) {
     printf("┌─────────────────────────────────────────┐\n");
@@ -258,8 +290,24 @@ void printFAT16File(FAT16File *file) {
     printf("└─────────────────────────────────────────┘\n");
 }
 
+void printFAT16Layout(FormattedVolume *file) {
+    FATVolumeInfo* volumeInfo = file->volumeInfo;
+    printf("┌─────────────────────────────────────────┐\n");
+    printf("│ FAT 16 layout                           │\n");
+    printf("├─────────────────────────────────────────┤\n");
+    printf("│ Reserved                                │\n");
+    printf("│  └ Bootsector\t\t0\t\t  │\n");
+    printf("│ FAT'S                                   │\n");
+    printf("│  └ FAT 1\t\t%u - %u\t\t  │\n", volumeInfo->FAT1Start, volumeInfo->FAT1Start + volumeInfo->FATTableSectorCount - 1);
+    printf("│  └ FAT 2\t\t%u - %u\t\t  │\n", volumeInfo->FAT2Start, volumeInfo->FAT2Start + volumeInfo->FATTableSectorCount - 1);
+    printf("│ Data Sector                             │\n");
+    printf("│  └ Root Sector\t%u - %u\t\t  │\n", volumeInfo->rootSectionStart, volumeInfo->rootSectionStart + volumeInfo->rootSectorCount - 1);
+    printf("│  └ Cluster Area\t%u - %u\t  │\n", volumeInfo->dataSectionStart, volumeInfo->totalSectorCount);
+    printf("└─────────────────────────────────────────┘\n");
+}
 
-void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume){
+
+void printFATTable(FormattedVolume* self){
     printf("┌─────────────────────────┐\n");
     printf("│ FAT Table               │\n");
     printf("├─────────────────────────┤\n");
@@ -268,7 +316,7 @@ void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume){
 
     bool searching = true;
     while(searching){
-        entry = swapEndianness16Bit(*(uint16_t*) volume->read(volume, volumeInfo->FAT1Address + i * 2, 2));
+        entry = swapEndianness16Bit(*(uint16_t*) self->rawVolume->read(self->rawVolume, self->volumeInfo->FAT1Start + i * 2, 2));
         switch (entry) {
             case 0x0000:
                 printf("│ %u \t Free Entry\t  │\n", i);
@@ -294,9 +342,9 @@ void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume){
         i++;
     }
     printf("│ ⋮         ⋮             │\n");
-    printf("│ %u  Total Clusters\t  │\n", volumeInfo->FATClusters);
+    printf("│ %u  Total Entries    │\n", self->volumeInfo->FATEntryCount);
     printf("├─────────────────────────┤\n");
-    printf("│ FAT Addressed: %luMB   │\n", volumeInfo->totalAddressableSize / 1048576);
+    printf("│ FAT Addressed: %luMB   │\n", self->volumeInfo->totalAddressableSize / 1048576);
     printf("└─────────────────────────┘\n");
 
 }
@@ -363,26 +411,27 @@ BootSector initBootSector(uint32_t volumeSize){
             "FAT16      "
     };
     // Volume size is in bytes
-    // Idk why I need to divide by bootSector.sectorsPerCluster
-    bootSector.totalSectorCount16 = volumeSize / bootSector.bytesPerSector / bootSector.sectorsPerCluster ;
-    bootSector.sectorsPersFAT = bootSector.totalSectorCount16 - bootSector.reservedSectorCount;
+    bootSector.totalSectorCount16 = volumeSize / bootSector.sectorsPerCluster / bootSector.bytesPerSector;
+    uint32_t totalClusterCount = (bootSector.totalSectorCount16 - bootSector.reservedSectorCount) / bootSector.sectorsPerCluster;
+    bootSector.sectorsPersFAT = (totalClusterCount * 16) / bootSector.bytesPerSector;
     return bootSector;
 }
 
 FATVolumeInfo* initFATVolumeInfo(BootSector bootSector) {
     FATVolumeInfo* volumeInfo = (FATVolumeInfo*)malloc(sizeof(FATVolumeInfo));
 
-    uint32_t FATTotalAddressedClusters = bootSector.totalSectorCount16 - bootSector.reservedSectorCount;
-    volume_ptr rootSectorStart = bootSector.reservedSectorCount + FATTotalAddressedClusters * bootSector.numberOfFATs;
-    uint32_t rootSectorCount = ((bootSector.rootEntryCount * 32)+(bootSector.bytesPerSector - 1)) /bootSector.bytesPerSector;
+    volume_ptr rootSectorStart = bootSector.reservedSectorCount + bootSector.sectorsPersFAT * bootSector.numberOfFATs;
+    uint32_t rootSectorCount = (bootSector.rootEntryCount * 32) / bootSector.bytesPerSector;
 
-    volumeInfo->FAT1Address = bootSector.reservedSectorCount * bootSector.bytesPerSector;
-    volumeInfo->FAT2Address = bootSector.reservedSectorCount * bootSector.bytesPerSector + FATTotalAddressedClusters;
-    volumeInfo->FATClusters = FATTotalAddressedClusters;
-    volumeInfo->rootSectorAddress = rootSectorStart;
+    volumeInfo->FAT1Start = bootSector.reservedSectorCount;
+    volumeInfo->FAT2Start = bootSector.reservedSectorCount + bootSector.sectorsPersFAT;
+    volumeInfo->rootSectionStart = rootSectorStart;
+    volumeInfo->dataSectionStart = rootSectorStart + rootSectorCount;
+    volumeInfo->FATTableSectorCount = bootSector.sectorsPersFAT;
     volumeInfo->rootSectorCount = rootSectorCount;
-    volumeInfo->dataSectorAddress = rootSectorStart + rootSectorCount;
-    volumeInfo->totalAddressableSize = FATTotalAddressedClusters * bootSector.sectorsPerCluster * bootSector.bytesPerSector;
+    volumeInfo->totalSectorCount = bootSector.totalSectorCount16;
+    volumeInfo->FATEntryCount = bootSector.totalSectorCount16;;
+    volumeInfo->totalAddressableSize = bootSector.totalSectorCount16 * bootSector.sectorsPerCluster * bootSector.bytesPerSector;
     volumeInfo->bytesPerSector = bootSector.bytesPerSector;
     volumeInfo->sectorsPerCluster = bootSector.sectorsPerCluster;
     return volumeInfo;

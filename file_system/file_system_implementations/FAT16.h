@@ -9,7 +9,8 @@
 
 #define FAT16_MINIMUM_SIZE 1024
 #define FAT16_MAXIMUM_SIZE 17179869184
-
+#define FAT16_ENTRY_SIZE 32
+#define FAT16_ENTRY_BASE_NAME_LENGTH 11
 
 typedef struct BootSector {
     uint8_t jmpBoot[3];
@@ -83,8 +84,10 @@ unsigned char directoryNameChecksum(unsigned char *name);
 
 
 void printBootSector(BootSector *bootSector);
-void printFATTable(FATVolumeInfo *volumeInfo, RawVolume* volume);
+void printFATTable(FormattedVolume* self);
 void printFAT16File(FAT16File *file);
+void printRootSectorShort(FormattedVolume* self);
+void printFAT16Layout(FormattedVolume *self);
 
 FATVolumeInfo* initFATVolumeInfo(BootSector bootSector);
 
@@ -108,7 +111,7 @@ uint8_t convertToDirAttributes(FileMetadata* file);
 
 void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr startSector, volume_ptr endSector);
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
-void writeFATS(FormattedVolume* self, volume_ptr FATAddress, void *nextSector);
+void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector);
 void* readSector(FormattedVolume* self, volume_ptr sector);
 
 

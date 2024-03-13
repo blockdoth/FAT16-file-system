@@ -4,7 +4,7 @@
 #include "file_system/file_system.h"
 #include "file_system/file_system_implementations/FAT16.h"
 
-#define GiB 1073741824 // Bytes
+#define GiB 1073741823 // Bytes
 
 
 
@@ -12,7 +12,7 @@
 
 int main() {
     printf("Mounting ramdisk\n");
-    RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB  - 1);
+    RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB);
     if(test_volume(raw_volume)){
         return 1;
     }
@@ -83,8 +83,9 @@ int main() {
 
 
     fs_create_file(&file_metadata, file);
+    fs_create_file(&file_metadata, file);
     char* string = (char *) fs_read_file(&file_metadata);
-    printf("File content:\n%s",string);
+    //printf("File content:\n%s",string);
 
     return 0;
 }

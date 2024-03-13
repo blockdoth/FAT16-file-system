@@ -10,13 +10,14 @@ typedef enum FILESYSTEM_TYPE{
 
 //TODO Try to move this in FAT16.h
 typedef struct FATVolumeInfo {
-    volume_ptr FAT1Address;
-    volume_ptr FAT2Address;
-    uint32_t FATClusters;
-    volume_ptr rootSectorAddress;
-    uint32_t freeRootSector;
+    volume_ptr FAT1Start;
+    volume_ptr FAT2Start;
+    volume_ptr dataSectionStart;
+    volume_ptr rootSectionStart;
+    uint32_t FATEntryCount;
+    uint32_t FATTableSectorCount;
     uint32_t rootSectorCount;
-    volume_ptr dataSectorAddress;
+    uint32_t totalSectorCount;
     uint64_t totalAddressableSize;
     uint16_t bytesPerSector;
     uint8_t sectorsPerCluster;

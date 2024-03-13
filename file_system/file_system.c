@@ -1,6 +1,28 @@
 #include "file_system.h"
 #include "file_system_implementations/FAT16.h"
-#include "stdio.h"
+
+
+
+
+
+// Supported operations
+
+// │ Operation │  Files  │ Directories  │
+// ├───────────┼─────────┼──────────────┤
+// │ Finding   │   [ ]   │     [ ]      │
+// │ Reading   │   [X]   │     [ ]      │
+// │ Writing   │   [X]   │     [ ]      │
+// │ Updating  │   [ ]   │     [ ]      │
+
+
+// UNIX based API
+
+// Files
+
+// Directories
+
+
+
 
 FormattedVolume* formatted_volume;
 
@@ -33,8 +55,7 @@ bool fs_create_file(system_file_metadata* systemFile, void* file_data){
             getCurrentDate(),
             systemFile->fileSize,
     };
-    formatted_volume->write(formatted_volume, &fileMetadata, file_data);
-    return true;
+    return formatted_volume->write(formatted_volume, &fileMetadata, file_data);;
 }
 void* fs_read_file(system_file_metadata* systemFile){
     FileMetadata fileMetadata= {
@@ -57,6 +78,11 @@ void* fs_read_file(system_file_metadata* systemFile){
     return formatted_volume->read(formatted_volume, &fileMetadata);
 }
 
+
+
+void fs_create_dir(){
+
+}
 
 uint16_t getCurrentTimeMs(){
     return 0; //TODO
