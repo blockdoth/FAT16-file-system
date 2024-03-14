@@ -47,28 +47,28 @@ typedef struct FileIdentifier {
 
 typedef struct system_file {
     char* name;
+    char* path;
+    uint32_t fileSize;
     uint8_t read_only : 1;
     uint8_t hidden : 1;
-    uint8_t system : 1;
-    uint8_t volume_id : 1;
-    uint8_t directory : 1;
     uint8_t archive : 1;
-    uint8_t long_name : 1;
-    uint32_t fileSize;
 } system_file_metadata;
 
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
-    bool (*write)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
+    bool (*writeFile)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
+    bool (*writeDir)(struct FormattedVolume* self, FileMetadata* fileMetadata);
     void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier);
 } FormattedVolume;
 
 typedef void* system_file_data;
+typedef char** Path;
 
 bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
 
 bool fs_create_file(system_file_metadata* systemFile, void* file_data);
+bool fs_create_dir(system_file_metadata* systemFile);
 void* fs_read_file(system_file_metadata* systemFile);
 
 
@@ -76,6 +76,9 @@ uint16_t getCurrentTimeMs();
 uint16_t getCurrentTime();
 uint16_t getCurrentDate();
 
+FileMetadata convertMetadata(system_file_metadata* systemFile);
+void destroyPath(Path path);
+volume_ptr resolvePath(char* path);
 
 // FILE api
 

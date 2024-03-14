@@ -48,7 +48,7 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
 
 
 
-bool FAT16Write(FormattedVolume * self, FileMetadata* fileMetadata, void* fileData){
+bool FAT16WriteFile(FormattedVolume * self, FileMetadata* fileMetadata, void* fileData){
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata);
     volume_ptr startSector = findNextFreeSector(self);
     if(startSector == -1){
@@ -104,6 +104,23 @@ bool FAT16Write(FormattedVolume * self, FileMetadata* fileMetadata, void* fileDa
     return true;
 }
 
+bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata){
+    FAT16File fat16File = convertMetadataToFAT16File(fileMetadata);
+    volume_ptr startSector = findNextFreeSector(self);
+    if(startSector == -1){
+        return false;
+    }
+    writeMetaData(self,fat16File,startSector, startSector);
+
+#ifdef DEBUG
+    printf("Create a directory %s at sector %u\n",
+           fat16File.name, startSector);
+    printFATTable(self);
+    printRootSectorShort(self);
+#endif
+    return true;
+}
+
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize){
     self->rawVolume->write(self->rawVolume, data, self->volumeInfo->dataSectionStart + sector * self->volumeInfo->bytesPerSector, dataSize);
 }
@@ -135,7 +152,7 @@ FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
     memcpy(fat16File.name, fileMetadata->name, FAT16_ENTRY_BASE_NAME_LENGTH); // TODO support long file names
     fat16File.name[10] = '\0';
 
-    fat16File.attributes = convertToDirAttributes(fileMetadata); //TODO write converter
+    fat16File.attributes = convertToDirAttributes(fileMetadata); //TODO writeFile converter
     fat16File.reserved = 0;
     fat16File.creationTimeTenth = fileMetadata->creationTimeTenth;
     fat16File.creationTime = fileMetadata->creationTime;
@@ -192,16 +209,19 @@ void* readSector(FormattedVolume* self, volume_ptr sector){
 }
 
 
+
+
+
 uint8_t convertToDirAttributes(FileMetadata* file) {
     uint8_t dirAttributes = 0;
-    dirAttributes |= file->read_only ? DIR_ATTR_READONLY : 0;
-    dirAttributes |= file->hidden ? DIR_ATTR_HIDDEN : 0;
-    dirAttributes |= file->system ? DIR_ATTR_SYSTEM : 0;
-    dirAttributes |= file->volume_id ? DIR_ATTR_VOLUME_ID : 0;
-    dirAttributes |= file->directory ? DIR_ATTR_DIRECTORY : 0;
-    dirAttributes |= file->archive ? DIR_ATTR_ARCHIVE : 0;
-    // Assuming DIR_ATTR_LONGNAME is a combination of all bits in long_name
-    dirAttributes |= file->long_name ? DIR_ATTR_LONGNAME : 0;
+    dirAttributes |= file->read_only ? ATTR_READONLY : 0;
+    dirAttributes |= file->hidden ? ATTR_HIDDEN : 0;
+    dirAttributes |= file->system ? ATTR_SYSTEM : 0;
+    dirAttributes |= file->volume_id ? ATTR_VOLUME_ID : 0;
+    dirAttributes |= file->directory ? ATTR_DIRECTORY : 0;
+    dirAttributes |= file->archive ? ATTR_ARCHIVE : 0;
+    // Assuming ATTR_LONGNAME is a combination of all bits in long_name
+    dirAttributes |= file->long_name ? ATTR_LONGNAME : 0;
 
     return dirAttributes;
 }
@@ -232,9 +252,14 @@ void printRootSectorShort(FormattedVolume* self){
         entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
         if(entry.name[0] == 0x00){
             break;
-        }else if(entry.name[0] == 0xe5){
+        }
+        if(entry.name[0] == 0xe5){
             printf("│ %u Deleted file\t%u - %u\t  │\n",i, entry.fileClusterStart, entry.fileClusterEnd);
-        } else{
+        } else if(entry.attributes == ATTR_DIRECTORY){
+            printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.fileClusterStart);
+
+        }
+        else{
             printf("│ %u %s \t%u bytes\t%u - %u\t  │\n",i,entry.name, entry.fileSize, entry.fileClusterStart, entry.fileClusterEnd);
         }
     }
@@ -255,25 +280,25 @@ void printFAT16File(FAT16File *file) {
         uint8_t mask = 1 << i;
         uint8_t bit = (file->attributes & mask);
         switch (bit) {
-            case DIR_ATTR_READONLY:
+            case ATTR_READONLY:
                 printf("│   └ Read-Only\t\t  X\t\t  │\n");
                 break;
-            case DIR_ATTR_HIDDEN:
+            case ATTR_HIDDEN:
                 printf("│   └ Hidden\t\t  X\t\t  │\n");
                 break;
-            case DIR_ATTR_SYSTEM:
+            case ATTR_SYSTEM:
                 printf("│   └ System\t\t  X\t\t  │\n");
                 break;
-            case DIR_ATTR_VOLUME_ID:
+            case ATTR_VOLUME_ID:
                 printf("│   └ Volume ID\t\t  X\t\t  │\n");
                 break;
-            case DIR_ATTR_DIRECTORY:
+            case ATTR_DIRECTORY:
                 printf("│   └ Directory\t\t  X\t\t  │\n");
                 break;
-            case DIR_ATTR_ARCHIVE:
+            case ATTR_ARCHIVE:
                 printf("│   └ Archive\t\t  X\t\t  │\n");
                 break;
-            case DIR_ATTR_LONGNAME:
+            case ATTR_LONGNAME:
                 printf("│   └ Long Name\t\t  X\t\t  │\n");
                 break;
             default:
@@ -382,7 +407,8 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInf
     formattedVolume->rawVolume = volume;
     formattedVolume->volumeInfo = volumeInfo;
     formattedVolume->read = FAT16Read;
-    formattedVolume->write = FAT16Write;
+    formattedVolume->writeFile = FAT16WriteFile;
+    formattedVolume->writeDir = FAT16WriteDir;
     return formattedVolume;
 }
 

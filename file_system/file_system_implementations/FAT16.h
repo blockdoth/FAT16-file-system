@@ -64,13 +64,13 @@ typedef struct FAT16FileNameExtension{
 // ^ Based on "Microsoft Extensible Firmware Initiative FAT32 File System Specification"
 
 enum DirectoryAttributes {
-    DIR_ATTR_READONLY  = 1 << 0,
-    DIR_ATTR_HIDDEN    = 1 << 1,
-    DIR_ATTR_SYSTEM    = 1 << 2,
-    DIR_ATTR_VOLUME_ID = 1 << 3,
-    DIR_ATTR_DIRECTORY = 1 << 4,
-    DIR_ATTR_ARCHIVE   = 1 << 5,
-    DIR_ATTR_LONGNAME  = 0xF
+    ATTR_READONLY  = 1 << 0,
+    ATTR_HIDDEN    = 1 << 1,
+    ATTR_SYSTEM    = 1 << 2,
+    ATTR_VOLUME_ID = 1 << 3,
+    ATTR_DIRECTORY = 1 << 4,
+    ATTR_ARCHIVE   = 1 << 5,
+    ATTR_LONGNAME  = 0xF
 };
 
 
@@ -102,7 +102,7 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInf
 
 volume_ptr findNextFreeSector(FormattedVolume* volume);
 
-bool FAT16Write(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
+bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
 void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata);
 
 
