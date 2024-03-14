@@ -21,6 +21,7 @@ typedef struct FATVolumeInfo {
     uint64_t totalAddressableSize;
     uint16_t bytesPerSector;
     uint8_t sectorsPerCluster;
+    uint16_t entriesPerCluster;
 } FATVolumeInfo;
 
 typedef struct FileMetadata {
@@ -58,12 +59,18 @@ typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
     bool (*writeFile)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
-    bool (*writeDir)(struct FormattedVolume* self, FileMetadata* fileMetadata);
+    bool (*writeDir)(struct FormattedVolume* self, FileMetadata* fileMetadata, char* path);
+    bool (*findFile)(struct FormattedVolume* self, FileMetadata* fileMetadata);
     void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier);
 } FormattedVolume;
 
+typedef struct Path {
+    char** path;
+    uint8_t depth;
+} Path;
+
+
 typedef void* system_file_data;
-typedef char** Path;
 
 bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
 
@@ -77,8 +84,6 @@ uint16_t getCurrentTime();
 uint16_t getCurrentDate();
 
 FileMetadata convertMetadata(system_file_metadata* systemFile);
-void destroyPath(Path path);
-volume_ptr resolvePath(char* path);
 
 // FILE api
 

@@ -12,5 +12,9 @@ add_executable(file_system
         file_system/volume_management/volume_test.c
         file_system/file_system_implementations/FAT16.h
         file_system/file_system_implementations/FAT16.c
+        file_system/file_system_implementations/FAT16_debug.c
+        file_system/file_system_implementations/FAT16_debug.h
+        file_system/file_system_implementations/FAT16_debug.h
+        file_system/file_system_implementations/FAT16_debug.c
 
 )

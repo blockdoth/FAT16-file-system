@@ -83,11 +83,6 @@ unsigned char directoryNameChecksum(unsigned char *name);
 
 
 
-void printBootSector(BootSector *bootSector);
-void printFATTable(FormattedVolume* self);
-void printFAT16File(FAT16File *file);
-void printRootSectorShort(FormattedVolume* self);
-void printFAT16Layout(FormattedVolume *self);
 
 FATVolumeInfo* initFATVolumeInfo(BootSector bootSector);
 
@@ -100,7 +95,8 @@ bool check_FAT16_formattible(RawVolume *raw_volume);
 FormattedVolume * formatFAT16Volume(RawVolume *volume);
 FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInfo);
 
-volume_ptr findNextFreeSector(FormattedVolume* volume);
+volume_ptr FATFindNextFreeSector(FormattedVolume* self);
+volume_ptr DATAFindNextFreeSector(FormattedVolume* self, volume_ptr tableAddress);
 
 bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
 void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata);
@@ -109,10 +105,14 @@ void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata);
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata);
 uint8_t convertToDirAttributes(FileMetadata* file);
 
-void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr startSector, volume_ptr endSector);
+void writeMetaData(FormattedVolume* self, FAT16File fileMetadata,  volume_ptr tableStart,volume_ptr startSector, volume_ptr endSector);
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
 void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector);
 void* readSector(FormattedVolume* self, volume_ptr sector);
 
+Path parsePath(char* path);
+void destroyPath(Path path);
+
+FAT16File findFileEntry(FormattedVolume* self, char* fileName, volume_ptr startCluster);
 
 #endif //FILE_SYSTEM_FAT16_H

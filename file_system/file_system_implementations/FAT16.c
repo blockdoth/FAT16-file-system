@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <string.h>
 #include "FAT16.h"
+#include "FAT16_debug.h"
 
 #define DEBUG
 
@@ -50,8 +51,8 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
 
 bool FAT16WriteFile(FormattedVolume * self, FileMetadata* fileMetadata, void* fileData){
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata);
-    volume_ptr startSector = findNextFreeSector(self);
-    if(startSector == -1){
+    volume_ptr startSector = FATFindNextFreeSector(self);
+    if(startSector == 0){
         return false;
     }
 
@@ -71,7 +72,7 @@ bool FAT16WriteFile(FormattedVolume * self, FileMetadata* fileMetadata, void* fi
 
         // Write the address of the next sector to the FATS
         writeFATS(self,prevSector, &currentSector);
-        currentSector = findNextFreeSector(self);
+        currentSector = FATFindNextFreeSector(self);
 
         currentDataPointer += bytesPerCluster;
         bytesLeftToWrite -= bytesPerCluster;
@@ -88,7 +89,7 @@ bool FAT16WriteFile(FormattedVolume * self, FileMetadata* fileMetadata, void* fi
     writeFATS(self,currentSector, &endSector);
 
     // Write to the metadata to the root directory
-    writeMetaData(self, fat16File, startSector, currentSector);
+    writeMetaData(self, fat16File, self->volumeInfo->rootSectionStart,startSector, currentSector);
     fat16File.fileClusterEnd = startSector;
     fat16File.fileClusterEnd = currentSector;
 
@@ -104,22 +105,134 @@ bool FAT16WriteFile(FormattedVolume * self, FileMetadata* fileMetadata, void* fi
     return true;
 }
 
-bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata){
+bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata, char* path){
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata);
-    volume_ptr startSector = findNextFreeSector(self);
-    if(startSector == -1){
-        return false;
-    }
-    writeMetaData(self,fat16File,startSector, startSector);
 
+    Path resolvedPath = parsePath(path);
+    volume_ptr entryTable = self->volumeInfo->rootSectionStart;
+    FAT16File entry;
+    uint8_t pathLength = resolvedPath.depth;
+    while (pathLength-- > 0){
+        entry = findFileEntry(self, *resolvedPath.path, entryTable);
+        entryTable = entry.fileClusterStart;
+        if(entry.name[0] == 0){
+            break;
+        }
+        if(strcmp((char*)entry.name, *resolvedPath.path) != 0){
+            #ifdef DEBUG
+            printf("ERROR: %s does not exist\n", entry.name);
+            #endif
+            return false;
+        }
+        if(entry.attributes != ATTR_DIRECTORY){
+            #ifdef DEBUG
+            printf("ERROR: %s is not a directory\n", entry.name);
+            #endif
+            return false;
+        }
+        resolvedPath.path++;
+    }
+//    volume_ptr newEntryTable; // Table where the new dir entry is going to live
+//    if(resolvedPath.depth == 0 ){
+//        newEntryTable = entryTable; // Root section;
+//    }else{
+//        //Finds the next free sector in the table in the data section
+//        newEntryTable = entry.fileClusterStart;
+//    }
+    // DATAFindNextFreeSector(self, entryTable);
+//    if(newEntryTable == 0){
+//        return false;
+//    }
+    volume_ptr subDirEntryCluster = FATFindNextFreeSector(self);
+
+    uint16_t endSector = swapEndianness16Bit(0xFFFF);
+    writeFATS(self, subDirEntryCluster - self->volumeInfo->dataSectionStart, &endSector);
+
+    writeMetaData(self, fat16File, entryTable, subDirEntryCluster , subDirEntryCluster); //TODO support multi cluster DIRS
+
+
+    destroyPath(resolvedPath);
 #ifdef DEBUG
-    printf("Create a directory %s at sector %u\n",
-           fat16File.name, startSector);
-    printFATTable(self);
+    printf("Created a directory %s at sector %u\n",
+           fat16File.name, entryTable);
+    //printFATTable(self);
+    printTree(self);
     printRootSectorShort(self);
 #endif
     return true;
 }
+
+
+FAT16File findFileEntry(FormattedVolume* self, char* fileName, volume_ptr startCluster){
+    FAT16File entry;
+    for (volume_ptr i = 0; i < self->volumeInfo->rootSectorCount; i++) {
+        entry = *(FAT16File*) self->rawVolume->read(self->rawVolume, startCluster + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+        if(entry.name[0] != 0x00){
+            if(strcmp(entry.name, fileName) == 0){
+                // TODO support the actual FAT16 naming format and longer filenames
+                #ifdef DEBUG
+                printf("Found %s of size %u in sector %u to sector %u\n",
+                       entry.name, entry.fileSize, entry.fileClusterStart, entry.fileClusterEnd);
+                #endif
+                return entry;
+            }
+        }
+    }
+
+    return (FAT16File){
+            .fileClusterStart = 0
+    }; //TODO error handling and make this not hacky
+}
+
+
+Path parsePath(char* path){
+    path++; //skip root
+    if(*path == '\0'){
+        char** resolvedPath = (char**) malloc((1) * sizeof(char **));
+        *resolvedPath = "";
+        return (Path) {resolvedPath, 0};
+    }
+
+    char* tempPath = path;
+    uint16_t depth = 0;
+    while(*tempPath++ != '\0'){
+        if(*tempPath == '|'){
+            depth++;
+        }
+        tempPath++;
+    }
+    char** resolvedPath = (char**) malloc((depth + 1) * sizeof(char **));
+
+    int i = 0;
+    tempPath = path;
+    char* start = path;
+    // Parsing the path and extracting substrings separated by '|'
+    while (*tempPath != '\0') {
+        if (*tempPath == '|') {
+            uint32_t strlen = tempPath - start;
+            resolvedPath[i] = (char*)malloc((strlen + 1) * sizeof(char));
+            strncpy(resolvedPath[i], start, strlen);
+            resolvedPath[i][strlen] = '\0'; // Null-terminate the string
+            start = tempPath + 1;
+            i++;
+        }
+        tempPath++;
+    }
+    return (Path){
+        resolvedPath,
+        depth
+    };
+}
+
+void destroyPath(Path path){
+//    while (*path.path != NULL) {
+//        free(*path.path);
+//        path.path++;
+//    }
+    //free(path); //Stack allocated
+}
+
+
 
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize){
     self->rawVolume->write(self->rawVolume, data, self->volumeInfo->dataSectionStart + sector * self->volumeInfo->bytesPerSector, dataSize);
@@ -130,21 +243,44 @@ void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector){
     self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT2Start + 2 * index, 2);
 }
 
-void writeMetaData(FormattedVolume* self, FAT16File fileMetadata, volume_ptr startSector, volume_ptr endSector){
+void writeMetaData(FormattedVolume* self, FAT16File fileMetadata,  volume_ptr tableStart, volume_ptr startSector, volume_ptr endSector){
     fileMetadata.fileClusterStart = startSector;
     fileMetadata.fileClusterEnd = endSector;
     FAT16File entry;
     int32_t i;
     for(i = 0; i < self->volumeInfo->rootSectorCount; i++) {
-        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, tableStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
         if(entry.name[0] == 0x00 || entry.name[0] == 0xe5){
             break;
         }
     }
-    self->rawVolume->write(self->rawVolume, &fileMetadata, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+    self->rawVolume->write(self->rawVolume, &fileMetadata, tableStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
     // TODO this is probably wrong
 }
 
+
+
+
+void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata) {
+    FAT16File fat16File = findFileEntry(self, fileMetadata->name, self->volumeInfo->rootSectionStart);
+    if(fat16File.fileClusterStart == 0){
+        #ifdef DEBUG
+        printf("ERROR: Couldnt find file with name %s\n", fileMetadata->name);
+        #endif
+        return NULL;
+    }
+    char* readFile = malloc(fileMetadata->fileSize);
+    void* startOfFile = readFile;
+    for (uint16_t i = fat16File.fileClusterStart; i <= fat16File.fileClusterEnd; i++) {
+        memcpy(readFile, readSector(self,i), self->volumeInfo->bytesPerSector);
+        readFile += self->volumeInfo->bytesPerSector;
+    }
+    return startOfFile; // TODO Add more metadata
+}
+
+void* readSector(FormattedVolume* self, volume_ptr sector){
+    return self->rawVolume->read(self->rawVolume, self->volumeInfo->dataSectionStart + sector * self->volumeInfo->bytesPerSector , self->volumeInfo->bytesPerSector);
+}
 
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
     FAT16File fat16File;
@@ -166,50 +302,6 @@ FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
     return fat16File;
 }
 
-FAT16File FAT16FindFile(FormattedVolume* self, char* fileName){
-    FAT16File entry;
-    for (volume_ptr i = 0; i < self->volumeInfo->rootSectorCount; i++) {
-        entry = *(FAT16File*) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
-        if(entry.name[0] != 0x00){
-            if(strcmp(entry.name, fileName) == 0){
-                // TODO support the actual FAT16 naming format and longer filenames
-                #ifdef DEBUG
-                printf("Found %s of size %u in sector %u to sector %u\n",
-                       entry.name, entry.fileSize, entry.fileClusterStart, entry.fileClusterEnd);
-                #endif
-                return entry;
-            }
-        }
-    }
-
-    return (FAT16File){
-        .fileSize = -1
-    }; //TODO error handling and make this not hacky
-}
-
-void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata) {
-    FAT16File fat16File = FAT16FindFile(self, fileMetadata->name);
-    if(fat16File.fileSize == -1){
-        #ifdef DEBUG
-        printf("ERROR: Couldnt find file with name %s\n", fileMetadata->name);
-        #endif
-        return NULL;
-    }
-    char* readFile = malloc(fileMetadata->fileSize);
-    void* startOfFile = readFile;
-    for (uint16_t i = fat16File.fileClusterStart; i <= fat16File.fileClusterEnd; i++) {
-        memcpy(readFile, readSector(self,i), self->volumeInfo->bytesPerSector);
-        readFile += self->volumeInfo->bytesPerSector;
-    }
-    return startOfFile; // TODO Add more metadata
-}
-
-void* readSector(FormattedVolume* self, volume_ptr sector){
-    return self->rawVolume->read(self->rawVolume, self->volumeInfo->dataSectionStart + sector * self->volumeInfo->bytesPerSector , self->volumeInfo->bytesPerSector);
-}
-
-
-
 
 
 uint8_t convertToDirAttributes(FileMetadata* file) {
@@ -226,180 +318,32 @@ uint8_t convertToDirAttributes(FileMetadata* file) {
     return dirAttributes;
 }
 
+//TODO merge these functions
 
-volume_ptr findNextFreeSector(FormattedVolume* volume){
+volume_ptr FATFindNextFreeSector(FormattedVolume* self){
     uint16_t entry;
-    for (uint32_t i = 0; i < volume->volumeInfo->FATEntryCount; i++) {
-        entry = *(uint16_t*) volume->rawVolume->read(volume->rawVolume, volume->volumeInfo->FAT1Start + i * 2, FAT16_ENTRY_SIZE);
+    for (uint32_t i = 0; i < self->volumeInfo->FATEntryCount; i++) {
+        entry = *(uint16_t*) self->rawVolume->read(self->rawVolume, self->volumeInfo->FAT1Start + i * 2, FAT16_ENTRY_SIZE);
         if(entry == 0x00){
-            return i;
+            return self->volumeInfo->dataSectionStart + i;
         }
     }
-    return -1;
+    return 0;
+}
+
+volume_ptr DATAFindNextFreeSector(FormattedVolume* self, volume_ptr tableAddress){
+    uint16_t entry;
+    for (uint32_t i = 0; i < self->volumeInfo->entriesPerCluster; i++) {
+        entry = *(uint16_t*) self->rawVolume->read(self->rawVolume, tableAddress + i * 2, FAT16_ENTRY_SIZE);
+        if(entry == 0x00){
+            return tableAddress + i;
+        }
+    }
+    return 0;
 }
 
 
 // Debug statements
-
-
-void printRootSectorShort(FormattedVolume* self){
-    printf("┌─────────────────────────────────────────┐\n");
-    printf("│ Root Sectors                            │\n");
-    printf("├─────────────────────────────────────────┤\n");
-
-    FAT16File entry;
-    for(int32_t i = 0; i < self->volumeInfo->rootSectorCount; i++){
-        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
-        if(entry.name[0] == 0x00){
-            break;
-        }
-        if(entry.name[0] == 0xe5){
-            printf("│ %u Deleted file\t%u - %u\t  │\n",i, entry.fileClusterStart, entry.fileClusterEnd);
-        } else if(entry.attributes == ATTR_DIRECTORY){
-            printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.fileClusterStart);
-
-        }
-        else{
-            printf("│ %u %s \t%u bytes\t%u - %u\t  │\n",i,entry.name, entry.fileSize, entry.fileClusterStart, entry.fileClusterEnd);
-        }
-    }
-    printf("└─────────────────────────────────────────┘\n");
-
-
-}
-
-
-void printFAT16File(FAT16File *file) {
-    printf("┌─────────────────────────────────────────┐\n");
-    printf("│ File Metadata                           │\n");
-    printf("├─────────────────────────────────────────┤\n");
-    printf("│ Name:\t\t\t  %.10s\t  │\n", file->name);
-    printf("│ File Size:\t\t  %u\t\t  │\n", file->fileSize);
-    printf("│ Attributes\t\t\t\t  │\n");
-    for (int i = 7; i >= 0; i--) {
-        uint8_t mask = 1 << i;
-        uint8_t bit = (file->attributes & mask);
-        switch (bit) {
-            case ATTR_READONLY:
-                printf("│   └ Read-Only\t\t  X\t\t  │\n");
-                break;
-            case ATTR_HIDDEN:
-                printf("│   └ Hidden\t\t  X\t\t  │\n");
-                break;
-            case ATTR_SYSTEM:
-                printf("│   └ System\t\t  X\t\t  │\n");
-                break;
-            case ATTR_VOLUME_ID:
-                printf("│   └ Volume ID\t\t  X\t\t  │\n");
-                break;
-            case ATTR_DIRECTORY:
-                printf("│   └ Directory\t\t  X\t\t  │\n");
-                break;
-            case ATTR_ARCHIVE:
-                printf("│   └ Archive\t\t  X\t\t  │\n");
-                break;
-            case ATTR_LONGNAME:
-                printf("│   └ Long Name\t\t  X\t\t  │\n");
-                break;
-            default:
-        }
-    }
-    printf("│ Creation Date:\t  %u\t\t  │\n", file->creationDate);
-    printf("│ Creation Time:\t  %u\t\t  │\n", file->creationTime);
-    printf("│ Creation Time Tenth:\t  %u\t\t  │\n", file->creationTimeTenth);
-    printf("│ Time of Last Write:\t  %u\t\t  │\n", file->timeOfLastWrite);
-    printf("│ Date of Last Write:\t  %u\t\t  │\n", file->dateOfLastWrite);
-    printf("│ Last Accessed Date:\t  %u\t\t  │\n", file->lastAccessedDate);
-    printf("│ First Cluster Start:\t  %u\t\t  │\n", file->fileClusterStart);
-    printf("│ First Cluster End:\t  %u\t\t  │\n", file->fileClusterEnd);
-    printf("└─────────────────────────────────────────┘\n");
-}
-
-void printFAT16Layout(FormattedVolume *file) {
-    FATVolumeInfo* volumeInfo = file->volumeInfo;
-    printf("┌─────────────────────────────────────────┐\n");
-    printf("│ FAT 16 layout                           │\n");
-    printf("├─────────────────────────────────────────┤\n");
-    printf("│ Reserved                                │\n");
-    printf("│  └ Bootsector\t\t0\t\t  │\n");
-    printf("│ FAT'S                                   │\n");
-    printf("│  └ FAT 1\t\t%u - %u\t\t  │\n", volumeInfo->FAT1Start, volumeInfo->FAT1Start + volumeInfo->FATTableSectorCount - 1);
-    printf("│  └ FAT 2\t\t%u - %u\t\t  │\n", volumeInfo->FAT2Start, volumeInfo->FAT2Start + volumeInfo->FATTableSectorCount - 1);
-    printf("│ Data Sector                             │\n");
-    printf("│  └ Root Sector\t%u - %u\t\t  │\n", volumeInfo->rootSectionStart, volumeInfo->rootSectionStart + volumeInfo->rootSectorCount - 1);
-    printf("│  └ Cluster Area\t%u - %u\t  │\n", volumeInfo->dataSectionStart, volumeInfo->totalSectorCount);
-    printf("└─────────────────────────────────────────┘\n");
-}
-
-
-void printFATTable(FormattedVolume* self){
-    printf("┌─────────────────────────┐\n");
-    printf("│ FAT Table               │\n");
-    printf("├─────────────────────────┤\n");
-    uint32_t i = 0;
-    uint16_t entry;
-
-    bool searching = true;
-    while(searching){
-        entry = swapEndianness16Bit(*(uint16_t*) self->rawVolume->read(self->rawVolume, self->volumeInfo->FAT1Start + i * 2, 2));
-        switch (entry) {
-            case 0x0000:
-                printf("│ %u \t Free Entry\t  │\n", i);
-                searching = false;
-                break;
-            case 0xFFF7:
-                printf("│ %u \t Bad Cluster\t │\n", i);
-                break;
-            case 0xFFF8:
-                printf("│ %u \t Start of Cluster │\n", i);
-                break;
-            case 0xFFFF:
-                printf("│ %u \t End of Cluster\t  │\n", i);
-                break;
-            default:
-                if (entry >= 0x0001 && entry <= 0xFFEF) {
-                    printf("│ %u \t 0x%02X\t\t  │\n", i, entry);
-                } else if (entry >= 0xFFF0 && entry <= 0xFFF6) {
-                    printf("│ %u \t Reserved Value │\n", i);
-                }
-                break;
-        }
-        i++;
-    }
-    printf("│ ⋮         ⋮             │\n");
-    printf("│ %u  Total Entries    │\n", self->volumeInfo->FATEntryCount);
-    printf("├─────────────────────────┤\n");
-    printf("│ FAT Addressed: %luMB   │\n", self->volumeInfo->totalAddressableSize / 1048576);
-    printf("└─────────────────────────┘\n");
-
-}
-
-void printBootSector(BootSector *bs) {
-    printf("┌─────────────────────────────────────────┐\n");
-    printf("│ Boot Sector                             │\n");
-    printf("├─────────────────────────────────────────┤\n");
-    printf("│ jmpBoot:\t\t  {0x%02X,0x%02X,0x%02X}│\n", bs->jmpBoot[0], bs->jmpBoot[1], bs->jmpBoot[2]);
-    printf("│ OEM_Name:\t\t  %.8s\t  │\n", bs->OEM_Name);
-    printf("│ Bytes per Sector:\t  %u\t\t  │\n", bs->bytesPerSector);
-    printf("│ Sectors per Cluster:\t  %u\t\t  │\n", bs->sectorsPerCluster);
-    printf("│ Reserved Sector Count:  %u\t\t  │\n", bs->reservedSectorCount);
-    printf("│ Number of FATs:\t  %u\t\t  │\n", bs->numberOfFATs);
-    printf("│ Root Entry Count:\t  %u\t\t  │\n", bs->rootEntryCount);
-    printf("│ Total Sector Count 16:  %u\t\t  │\n", bs->totalSectorCount16);
-    printf("│ Media Type:\t\t  0x%02X\t\t  │\n", bs->media);
-    printf("│ Sectors per FAT:\t  %u\t\t  │\n", bs->sectorsPersFAT);
-    printf("│ Sectors per Track:\t  %u\t\t  │\n", bs->sectorsPerTrack);
-    printf("│ Number of Heads:\t  %u\t\t  │\n", bs->numberOfHeads);
-    printf("│ Hidden Sectors:\t  %u\t\t  │\n", bs->hiddenSectors);
-    printf("│ Total Sector Count 32:  %u\t\t  │\n", bs->totalSectorCount32);
-    printf("│ Drive Number:\t\t  %u\t\t  │\n", bs->driveNumber);
-    printf("│ Reserved:\t\t  %u\t\t  │\n", bs->reserved);
-    printf("│ Boot Signature:\t  0x%02X\t\t  │\n", bs->bootSignature);
-    printf("│ Volume Serial Number:\t  %u\t\t  │\n", bs->volumeSerialNumber);
-    printf("│ Volume Label:\t\t  %.11s\t  │\n", bs->volumeLabel);
-    printf("│ Filesystem Type:\t  %.11s\t  │\n", bs->filesystemType);
-    printf("└─────────────────────────────────────────┘\n");
-}
 
 // Init structs
 FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInfo) {
@@ -460,6 +404,7 @@ FATVolumeInfo* initFATVolumeInfo(BootSector bootSector) {
     volumeInfo->totalAddressableSize = bootSector.totalSectorCount16 * bootSector.sectorsPerCluster * bootSector.bytesPerSector;
     volumeInfo->bytesPerSector = bootSector.bytesPerSector;
     volumeInfo->sectorsPerCluster = bootSector.sectorsPerCluster;
+    volumeInfo->entriesPerCluster = (bootSector.sectorsPerCluster * bootSector.bytesPerSector) / 32;
     return volumeInfo;
 }
 

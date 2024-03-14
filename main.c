@@ -29,21 +29,46 @@ int main() {
             0
     };
 
-    system_file_metadata dir_metadata = {
-            "dir",
-            "#a|b|c|d",
+    system_file_metadata rootdir = {
+            "root",
+            "#",
+            0,
+            0,
+            0,
+            0
+    };
+    system_file_metadata subDirA = {
+            "subdirA",
+            "#root|",
+            0,
+            0,
+            0,
+            0
+    };
+    system_file_metadata subDirB = {
+            "subdirB",
+            "#root|subdirA|",
+            0,
+            0,
+            0,
+            0
+    };
+    system_file_metadata subDirC = {
+            "subdirC",
+            "#root|",
             0,
             0,
             0,
             0
     };
 
-
-    fs_create_file(&file_metadata, file);
-    fs_create_file(&file_metadata, file);
-    char* string = (char *) fs_read_file(&file_metadata);
+    //fs_create_file(&file_metadata, file);
+    //char* string = (char *) fs_read_file(&file_metadata);
     //printf("File content:\n%s",string);
-    fs_create_dir( &dir_metadata);
+    fs_create_dir( &rootdir);
+    fs_create_dir( &subDirA);
+    fs_create_dir( &subDirB);
+//    fs_create_dir( &subDirC);
 
     return 0;
 }
