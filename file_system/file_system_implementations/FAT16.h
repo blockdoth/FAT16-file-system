@@ -5,6 +5,10 @@
 #include "stdint.h"
 #endif
 
+#include <stdio.h>
+#include <malloc.h>
+#include <string.h>
+
 #include "../file_system.h"
 
 #define FAT16_MINIMUM_SIZE 1024
@@ -74,45 +78,22 @@ enum DirectoryAttributes {
 };
 
 
-
-
-
-BootSector initBootSector(uint32_t volumeSize);
-
-unsigned char directoryNameChecksum(unsigned char *name);
-
-
-
-
-FATVolumeInfo* initFATVolumeInfo(BootSector bootSector);
-
-// TODO remove when this gets added to Delft-OS
-uint16_t swapEndianness16Bit(uint16_t num);
-
-bool check_FAT16_formattible(RawVolume *raw_volume);
-
-
 FormattedVolume * formatFAT16Volume(RawVolume *volume);
-FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo *volumeInfo);
-
 volume_ptr FATFindNextFreeSector(FormattedVolume* self);
 volume_ptr DATAFindNextFreeSector(FormattedVolume* self, volume_ptr tableAddress);
 
 bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
-void* FAT16Read(FormattedVolume* self,  FileMetadata* fileMetadata);
+void* FAT16ReadFile(FormattedVolume* self, FileMetadata* fileMetadata);
+bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
+uint16_t readFATS(FormattedVolume* self, uint32_t index);
 
 
-FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata);
-uint8_t convertToDirAttributes(FileMetadata* file);
-
-void writeMetaData(FormattedVolume* self, FAT16File fileMetadata,  volume_ptr tableStart,volume_ptr startSector, volume_ptr endSector);
+void writeFileEntry(FormattedVolume* self, FAT16File fileMetadata, volume_ptr tableStart, volume_ptr startSector, volume_ptr endSector);
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
 void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector);
 void* readSector(FormattedVolume* self, volume_ptr sector);
+FAT16File readFileEntry(FormattedVolume* self, volume_ptr tableStart, uint32_t index);
 
-Path parsePath(char* path);
-void destroyPath(Path path);
-
-FAT16File findFileEntry(FormattedVolume* self, char* fileName, volume_ptr startCluster);
+FAT16File findFileEntry(FormattedVolume* self, char* fileName, volume_ptr startTable);
 
 #endif //FILE_SYSTEM_FAT16_H

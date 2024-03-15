@@ -1,6 +1,7 @@
 #include <malloc.h>
 #include <string.h>
 #include "FAT16_debug.h"
+#include "FAT16_utility.h"
 
 void printRootSectorShort(FormattedVolume* self){
     printf("┌─────────────────────────────────────────┐\n");
@@ -9,7 +10,7 @@ void printRootSectorShort(FormattedVolume* self){
 
     FAT16File entry;
     for(uint32_t i = 0; i < self->volumeInfo->rootSectorCount; i++){
-        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+        entry = readFileEntry(self, self->volumeInfo->rootSectionStart, i);
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.name[0] == 0xe5){
@@ -23,22 +24,23 @@ void printRootSectorShort(FormattedVolume* self){
     printf("└─────────────────────────────────────────┘\n");
 }
 
-//for(uint32_t j = 0; j < self->volumeInfo->entriesPerCluster; j++){
+//for(uint32_t j = 0; j < self->volumeInfo->bytesPerCluster; j++){
 //entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, entry.fileClusterStart + j * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
 //
 //}
 
 void printTree(FormattedVolume* self){
     printf("Folder structure\n");
+    printf("root\n");
 
     FAT16File entry;
     for(uint32_t i = 0; i < self->volumeInfo->rootSectorCount; i++) {
-        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, self->volumeInfo->rootSectionStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+        entry = readFileEntry(self, self->volumeInfo->rootSectionStart, i);
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.attributes == ATTR_DIRECTORY){
             printf("└ %s \n",entry.name);
-            printTreeSubDir(self, entry.fileClusterStart," ");
+            printTreeSubDir(self, entry.fileClusterStart,"  ");
         } else{
             printf("└ %s \n",entry.name);
         }
@@ -46,15 +48,16 @@ void printTree(FormattedVolume* self){
     }
 }
 
-void printTreeSubDir(FormattedVolume* self, volume_ptr tableStart,char* prefix){
+void printTreeSubDir(FormattedVolume* self, volume_ptr tableStart, char* prefix){
     FAT16File entry;
-    for(uint32_t i = 0; i < self->volumeInfo->entriesPerCluster; i++) {
-        entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, tableStart + i * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
+    for(uint32_t i = 0; i < self->volumeInfo->bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
+        entry = readFileEntry(self, tableStart, i);
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.attributes == ATTR_DIRECTORY){
-            char* extendedPrefix = malloc(strlen(prefix) + 5);
+            char* extendedPrefix = malloc(strlen(prefix) + 3);
             sprintf(extendedPrefix, "  %s", prefix);
+            printf("%s └ %s \n",prefix, entry.name);
             printTreeSubDir(self, entry.fileClusterStart,extendedPrefix);
         } else{
             printf("%s  %s \n",prefix,entry.name);

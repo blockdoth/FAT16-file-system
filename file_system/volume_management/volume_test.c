@@ -1,6 +1,8 @@
 #include "volume_test.h"
 
 bool test_volume(RawVolume* volume){
+    #ifdef DEBUG_VOLUME
+
     dataBlock data_1 = {
             "Hello world",
             12
@@ -18,6 +20,7 @@ bool test_volume(RawVolume* volume){
     }
 
     printf("System check passed\n");
+    #endif
 
     return 0;
 }

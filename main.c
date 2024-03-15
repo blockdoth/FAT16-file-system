@@ -30,7 +30,7 @@ int main() {
     };
 
     system_file_metadata rootdir = {
-            "root",
+            "rootdirA",
             "#",
             0,
             0,
@@ -39,7 +39,7 @@ int main() {
     };
     system_file_metadata subDirA = {
             "subdirA",
-            "#root|",
+            "#rootdirA|",
             0,
             0,
             0,
@@ -47,15 +47,15 @@ int main() {
     };
     system_file_metadata subDirB = {
             "subdirB",
-            "#root|subdirA|",
+            "#rootdirA|subdirA|",
             0,
             0,
             0,
             0
     };
     system_file_metadata subDirC = {
-            "subdirC",
-            "#root|",
+            "rootdirB",
+            "#",
             0,
             0,
             0,
@@ -68,7 +68,7 @@ int main() {
     fs_create_dir( &rootdir);
     fs_create_dir( &subDirA);
     fs_create_dir( &subDirB);
-//    fs_create_dir( &subDirC);
+    fs_create_dir( &subDirC);
 
     return 0;
 }

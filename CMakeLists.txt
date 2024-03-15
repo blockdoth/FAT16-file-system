@@ -16,5 +16,7 @@ add_executable(file_system
         file_system/file_system_implementations/FAT16_debug.h
         file_system/file_system_implementations/FAT16_debug.h
         file_system/file_system_implementations/FAT16_debug.c
+        file_system/file_system_implementations/FAT16_utility.c
+        file_system/file_system_implementations/FAT16_utility.h
 
 )

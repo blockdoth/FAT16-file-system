@@ -1,7 +1,3 @@
-//
-// Created by pepij on 14/03/2024.
-//
-
 #ifndef FILE_SYSTEM_FAT16_DEBUG_H
 #define FILE_SYSTEM_FAT16_DEBUG_H
 

@@ -21,7 +21,7 @@ typedef struct FATVolumeInfo {
     uint64_t totalAddressableSize;
     uint16_t bytesPerSector;
     uint8_t sectorsPerCluster;
-    uint16_t entriesPerCluster;
+    uint16_t bytesPerCluster;
 } FATVolumeInfo;
 
 typedef struct FileMetadata {
