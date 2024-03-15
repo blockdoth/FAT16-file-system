@@ -11,9 +11,9 @@
 
 // │ Operation │  Files  │ Directories  │
 // ├───────────┼─────────┼──────────────┤
-// │ Finding   │   [    ]   │     [ ]      │
-// │ Reading   │   [X]   │     [ ]      │
-// │ Writing   │   [X]   │     [ ]      │
+// │ Finding   │   [ ]   │     [ ]      │
+// │ Reading   │   [X]   │     [X]      │
+// │ Writing   │   [X]   │     [X]      │
 // │ Updating  │   [ ]   │     [ ]      │
 
 
@@ -41,11 +41,11 @@ bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
 
 bool fs_create_file(system_file_metadata* systemFile, void* file_data){
     FileMetadata fileMetadata = convertMetadata(systemFile);
-    return formatted_volume->writeFile(formatted_volume, &fileMetadata, file_data);
+    return formatted_volume->writeFile(formatted_volume, &fileMetadata, file_data, systemFile->path);
 }
 void* fs_read_file(system_file_metadata* systemFile){
     FileMetadata fileMetadata = convertMetadata(systemFile);
-    return formatted_volume->read(formatted_volume, &fileMetadata);
+    return formatted_volume->read(formatted_volume, &fileMetadata, systemFile->path);
 }
 
 

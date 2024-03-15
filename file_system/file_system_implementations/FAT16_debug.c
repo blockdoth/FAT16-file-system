@@ -30,37 +30,48 @@ void printRootSectorShort(FormattedVolume* self){
 //}
 
 void printTree(FormattedVolume* self){
-    printf("Folder structure\n");
-    printf("root\n");
+    printf("─────────────────────────────────────────\n");
+    printf("Directory structure\n");
+    printf("─────────────────────────────────────────\n");
+    printf("Root\n");
+    printTreeRecursive(self, self->volumeInfo->rootSectionStart, "");
+    printf("─────────────────────────────────────────\n");
 
-    FAT16File entry;
-    for(uint32_t i = 0; i < self->volumeInfo->rootSectorCount; i++) {
-        entry = readFileEntry(self, self->volumeInfo->rootSectionStart, i);
-        if(entry.name[0] == 0x00){
-            break;
-        } else if(entry.attributes == ATTR_DIRECTORY){
-            printf("└ %s \n",entry.name);
-            printTreeSubDir(self, entry.fileClusterStart,"  ");
-        } else{
-            printf("└ %s \n",entry.name);
-        }
-
-    }
 }
 
-void printTreeSubDir(FormattedVolume* self, volume_ptr tableStart, char* prefix){
+void printTreeRecursive(FormattedVolume* self, volume_ptr tableStart, char* prefix){
     FAT16File entry;
+    FAT16File nextEntry;
+    bool lastEntry;
     for(uint32_t i = 0; i < self->volumeInfo->bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
         entry = readFileEntry(self, tableStart, i);
+        nextEntry = readFileEntry(self, tableStart, i + 1);
+        if(nextEntry.name[0] == 0x00){
+            lastEntry = true;
+        }else{
+            lastEntry = false;
+        }
+
         if(entry.name[0] == 0x00){
             break;
-        } else if(entry.attributes == ATTR_DIRECTORY){
-            char* extendedPrefix = malloc(strlen(prefix) + 3);
-            sprintf(extendedPrefix, "  %s", prefix);
-            printf("%s └ %s \n",prefix, entry.name);
-            printTreeSubDir(self, entry.fileClusterStart,extendedPrefix);
-        } else{
-            printf("%s  %s \n",prefix,entry.name);
+        }
+        char* pipe;
+        char* pipePrefix;
+        if(lastEntry){
+            pipe = " └─ ";
+            pipePrefix = "   ";
+        }else{
+            pipe = " ├─ ";
+            pipePrefix = " │ ";
+        }
+        char* childPrefix = (char*)malloc( strlen(prefix) + strlen(pipePrefix) + 1); // Make a copy for concat's
+        sprintf(childPrefix, "%s%s", prefix, pipePrefix);
+
+        printf("%s%s%s \n",prefix,pipe,entry.name);
+
+        if(entry.attributes == ATTR_DIRECTORY){
+            printTreeRecursive(self, entry.fileClusterStart, childPrefix);
+            free(childPrefix);
         }
     }
 }
@@ -138,7 +149,7 @@ void printFATTable(FormattedVolume* self){
 
     bool searching = true;
     while(searching){
-        entry = swapEndianness16Bit(*(uint16_t*) self->rawVolume->read(self->rawVolume, self->volumeInfo->FAT1Start + i * 2, 2));
+        entry = swapEndianness16Bit(readFATS(self, i));
         switch (entry) {
             case 0x0000:
                 printf("│ %u \t Free Entry\t  │\n", i);

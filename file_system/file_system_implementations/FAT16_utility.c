@@ -3,7 +3,6 @@
 
 
 Path parsePath(char* path){
-    path++; //skip root
     if(*path == '\0'){
         char** resolvedPath = (char**) malloc((1) * sizeof(char **));
         *resolvedPath = "";

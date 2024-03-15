@@ -12,7 +12,7 @@ void printFATTable(FormattedVolume* self);
 void printFAT16File(FAT16File *file);
 void printRootSectorShort(FormattedVolume* self);
 void printFAT16Layout(FormattedVolume *self);
-void printTreeSubDir(FormattedVolume* self, volume_ptr tableStart,char* prefix);
+void printTreeRecursive(FormattedVolume* self, volume_ptr tableStart, char* prefix);
 void printTree(FormattedVolume* self);
 
 #endif //FILE_SYSTEM_FAT16_DEBUG_H

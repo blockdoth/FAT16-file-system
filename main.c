@@ -19,56 +19,84 @@ int main() {
     format_volume(raw_volume, FAT16);
 
 
-
-    system_file_metadata file_metadata = {
-            "file.txt",
-            "#a|b|c|d",
-            strlen((char*) file) + 1,
-            0,
-            0,
-            0
-    };
-
     system_file_metadata rootdir = {
-            "rootdirA",
-            "#",
+            "RootdirA",
+            "",
             0,
             0,
             0,
             0
     };
     system_file_metadata subDirA = {
-            "subdirA",
-            "#rootdirA|",
+            "SubdirA",
+            "RootdirA|",
             0,
             0,
             0,
             0
     };
     system_file_metadata subDirB = {
-            "subdirB",
-            "#rootdirA|subdirA|",
+            "SubdirB",
+            "RootdirA|SubdirA|",
             0,
             0,
             0,
             0
     };
     system_file_metadata subDirC = {
-            "rootdirB",
-            "#",
+            "RootdirB",
+            "",
             0,
             0,
             0,
             0
     };
 
-    //fs_create_file(&file_metadata, file);
-    //char* string = (char *) fs_read_file(&file_metadata);
-    //printf("File content:\n%s",string);
+    system_file_metadata fileA = {
+            "FileA.txt",
+            "",
+            strlen((char*) file) + 1,
+            0,
+            0,
+            0
+    };
+    system_file_metadata fileB = {
+            "FileB.txt",
+            "RootdirA|",
+            strlen((char*) file) + 1,
+            0,
+            0,
+            0
+    };
+
+    system_file_metadata fileC = {
+            "FileC.txt",
+            "RootdirA|SubdirA|SubdirB|",
+            strlen((char*) file) + 1,
+            0,
+            0,
+            0
+    };
+
+    system_file_metadata fileD = {
+            "FileD.txt",
+            "",
+            strlen((char*) file) + 1,
+            0,
+            0,
+            0
+    };
     fs_create_dir( &rootdir);
     fs_create_dir( &subDirA);
     fs_create_dir( &subDirB);
     fs_create_dir( &subDirC);
+
+    fs_create_file(&fileA, file);
+    fs_create_file(&fileB, file);
+    fs_create_file(&fileC, file);
+    fs_create_file(&fileD, file);
+    char* string = (char *) fs_read_file(&fileC);
+    //printf("File content:\n%s",string);
 
     return 0;
 }

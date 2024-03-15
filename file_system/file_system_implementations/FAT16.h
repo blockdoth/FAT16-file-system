@@ -79,21 +79,21 @@ enum DirectoryAttributes {
 
 
 FormattedVolume * formatFAT16Volume(RawVolume *volume);
-volume_ptr FATFindNextFreeSector(FormattedVolume* self);
+volume_ptr findFreeCluster(FormattedVolume* self);
 volume_ptr DATAFindNextFreeSector(FormattedVolume* self, volume_ptr tableAddress);
 
-bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
-void* FAT16ReadFile(FormattedVolume* self, FileMetadata* fileMetadata);
+bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData, char* path);
+void* FAT16ReadFile(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
 bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
 uint16_t readFATS(FormattedVolume* self, uint32_t index);
-
+volume_ptr resolveFile(FormattedVolume* self, char* path, char* fileName);
 
 void writeFileEntry(FormattedVolume* self, FAT16File fileMetadata, volume_ptr tableStart, volume_ptr startSector, volume_ptr endSector);
 void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
 void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector);
-void* readSector(FormattedVolume* self, volume_ptr sector);
+void* readData(FormattedVolume* self, volume_ptr sector);
 FAT16File readFileEntry(FormattedVolume* self, volume_ptr tableStart, uint32_t index);
 
-FAT16File findFileEntry(FormattedVolume* self, char* fileName, volume_ptr startTable);
+FAT16File findEntryInTable(FormattedVolume* self, char* fileName, volume_ptr startTable);
 
 #endif //FILE_SYSTEM_FAT16_H

@@ -58,10 +58,10 @@ typedef struct system_file {
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
-    bool (*writeFile)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData);
+    bool (*writeFile)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData, char* path);
     bool (*writeDir)(struct FormattedVolume* self, FileMetadata* fileMetadata, char* path);
     bool (*findFile)(struct FormattedVolume* self, FileMetadata* fileMetadata);
-    void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier);
+    void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier, char* path);
 } FormattedVolume;
 
 typedef struct Path {
