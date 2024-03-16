@@ -1,7 +1,10 @@
 #ifndef FILE_SYSTEM_H
 #define FILE_SYSTEM_H
 
-#include "volume_management/volume.h"
+#include "volume/volume.h"
+#include "formats/FAT16/FAT16.h"
+#include <string.h>
+#include <malloc.h>
 
 
 typedef enum FILESYSTEM_TYPE{
@@ -9,20 +12,7 @@ typedef enum FILESYSTEM_TYPE{
 } FILESYSTEM_TYPE;
 
 //TODO Try to move this in FAT16.h
-typedef struct FATVolumeInfo {
-    volume_ptr FAT1Start;
-    volume_ptr FAT2Start;
-    volume_ptr dataSectionStart;
-    volume_ptr rootSectionStart;
-    uint32_t FATEntryCount;
-    uint32_t FATTableSectorCount;
-    uint32_t rootSectorCount;
-    uint32_t totalSectorCount;
-    uint64_t totalAddressableSize;
-    uint16_t bytesPerSector;
-    uint8_t sectorsPerCluster;
-    uint16_t bytesPerCluster;
-} FATVolumeInfo;
+
 
 typedef struct FileMetadata {
     char* name;
@@ -55,6 +45,21 @@ typedef struct system_file {
     uint8_t archive : 1;
 } system_file_metadata;
 
+typedef struct FATVolumeInfo {
+    volume_ptr FAT1Start;
+    volume_ptr FAT2Start;
+    volume_ptr dataSectionStart;
+    volume_ptr rootSectionStart;
+    uint32_t FATEntryCount;
+    uint32_t FATTableSectorCount;
+    uint32_t rootSectorCount;
+    uint32_t totalSectorCount;
+    uint64_t totalAddressableSize;
+    uint16_t bytesPerSector;
+    uint8_t sectorsPerCluster;
+    uint16_t bytesPerCluster;
+} FATVolumeInfo;
+
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
@@ -64,15 +69,10 @@ typedef struct FormattedVolume {
     void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier, char* path);
 } FormattedVolume;
 
-typedef struct Path {
-    char** path;
-    uint8_t depth;
-} Path;
-
-
 typedef void* system_file_data;
 
-bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
+bool fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
+void fs_destroy();
 
 bool fs_create_file(system_file_metadata* systemFile, void* file_data);
 bool fs_create_dir(system_file_metadata* systemFile);
@@ -87,6 +87,10 @@ FileMetadata convertMetadata(system_file_metadata* systemFile);
 
 // FILE api
 
+FormattedVolume* formatFAT16Volume(RawVolume *volume);
+bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData, char* path);
+void* FAT16ReadFile(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
+bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
 
 
 

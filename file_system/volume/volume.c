@@ -1,0 +1,42 @@
+#include "volume.h"
+#include "disks/ram/ramdisk.h"
+#include "disks/flash/flashdisk.h"
+
+
+bool bounds_check(RawVolume* self, uint32_t start_addr, uint32_t size){
+    if((start_addr + size) > self->volumeSize){
+        if (start_addr > self->volumeSize){
+            printf("ERROR:\t Address %u out of bounds of rawVolume\n", start_addr);
+        }else{
+            printf("ERROR:\t Allocation of %u to large from start address %u\n", size, start_addr);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+
+// Initializes the correct Object based on the rawVolume type
+RawVolume* prep_volume(VOLUME_TYPE volumeType){
+    switch (volumeType) {
+        case RAM_DISK:
+            return prep_ramdisk();
+        case FLASH_DRIVE:
+            return prep_flashdisk(); // TODO fix this import error
+        default:
+    }
+}
+
+RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t size){
+    RawVolume* volume = prep_volume(volumeType);
+    if(volume->init(volume, size) == false){
+        printf("Failed to mount rawVolume\n");
+        volume->destroy(volume);
+        return NULL; // TODO handle this
+    }
+    printf("Successfully mounted rawVolume\n");
+    return volume;
+}
+
+
+#undef DEBUG_VOLUME

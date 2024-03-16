@@ -1,18 +1,19 @@
 #ifndef FILE_SYSTEM_FAT16_H
+
 #define FILE_SYSTEM_FAT16_H
+#include "../../file_system.h"
 
-#ifndef STDINT_H
+#include "../../volume/volume.h"
 #include "stdint.h"
-#endif
-
 #include <stdio.h>
 #include <malloc.h>
+
 #include <string.h>
 
-#include "../file_system.h"
+
+
 
 #define FAT16_MINIMUM_SIZE 1024
-#define FAT16_MAXIMUM_SIZE 17179869184
 #define FAT16_ENTRY_SIZE 32
 #define FAT16_ENTRY_BASE_NAME_LENGTH 11
 
@@ -54,6 +55,8 @@ typedef struct FAT16File {
     uint32_t fileSize;
 } FAT16File; // Total volumeSize: 32 bytes
 
+
+
 typedef struct FAT16FileNameExtension{
     uint8_t order;
     unsigned char name1[10];
@@ -77,23 +80,5 @@ enum DirectoryAttributes {
     ATTR_LONGNAME  = 0xF
 };
 
-
-FormattedVolume * formatFAT16Volume(RawVolume *volume);
-volume_ptr findFreeCluster(FormattedVolume* self);
-volume_ptr DATAFindNextFreeSector(FormattedVolume* self, volume_ptr tableAddress);
-
-bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData, char* path);
-void* FAT16ReadFile(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
-bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
-uint16_t readFATS(FormattedVolume* self, uint32_t index);
-volume_ptr resolveFile(FormattedVolume* self, char* path, char* fileName);
-
-void writeFileEntry(FormattedVolume* self, FAT16File fileMetadata, volume_ptr tableStart, volume_ptr startSector, volume_ptr endSector);
-void writeSector(FormattedVolume* self, void* data, volume_ptr sector, uint32_t dataSize);
-void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector);
-void* readData(FormattedVolume* self, volume_ptr sector);
-FAT16File readFileEntry(FormattedVolume* self, volume_ptr tableStart, uint32_t index);
-
-FAT16File findEntryInTable(FormattedVolume* self, char* fileName, volume_ptr startTable);
 
 #endif //FILE_SYSTEM_FAT16_H

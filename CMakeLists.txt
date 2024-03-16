@@ -3,20 +3,22 @@ project(file_system C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_executable(file_system
-        main.c
-        file_system/file_system.h
-        file_system/file_system.c
-        file_system/volume_management/volume.h
-        file_system/volume_management/volume.c
-        file_system/volume_management/volume_test.c
-        file_system/file_system_implementations/FAT16.h
-        file_system/file_system_implementations/FAT16.c
-        file_system/file_system_implementations/FAT16_debug.c
-        file_system/file_system_implementations/FAT16_debug.h
-        file_system/file_system_implementations/FAT16_debug.h
-        file_system/file_system_implementations/FAT16_debug.c
-        file_system/file_system_implementations/FAT16_utility.c
-        file_system/file_system_implementations/FAT16_utility.h
-
+# Define sources
+file(GLOB_RECURSE FILE_SYSTEM_SOURCES
+        "file_system/*.c"
+        "file_system/*.h"
 )
+
+file(GLOB_RECURSE TEST_SOURCES
+        "file_system/*.c"
+        "file_system/*.h"
+        "tests/*.c"
+        "tests/*.h"
+)
+
+list(FILTER TEST_SOURCES EXCLUDE REGEX "main.c")
+
+
+
+add_executable(main ${FILE_SYSTEM_SOURCES})
+add_executable(test ${TEST_SOURCES})

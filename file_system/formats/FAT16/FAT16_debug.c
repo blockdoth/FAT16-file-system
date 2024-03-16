@@ -1,7 +1,4 @@
-#include <malloc.h>
-#include <string.h>
 #include "FAT16_debug.h"
-#include "FAT16_utility.h"
 
 void printRootSectorShort(FormattedVolume* self){
     printf("┌─────────────────────────────────────────┐\n");
@@ -51,7 +48,6 @@ void printTreeRecursive(FormattedVolume* self, volume_ptr tableStart, char* pref
         }else{
             lastEntry = false;
         }
-
         if(entry.name[0] == 0x00){
             break;
         }
@@ -71,8 +67,8 @@ void printTreeRecursive(FormattedVolume* self, volume_ptr tableStart, char* pref
 
         if(entry.attributes == ATTR_DIRECTORY){
             printTreeRecursive(self, entry.fileClusterStart, childPrefix);
-            free(childPrefix);
         }
+        free(childPrefix);
     }
 }
 
@@ -182,7 +178,7 @@ void printFATTable(FormattedVolume* self){
 
 }
 
-void printBootSector(BootSector *bs) {
+void printBootSector(BootSector* bs) {
     printf("┌─────────────────────────────────────────┐\n");
     printf("│ Boot Sector                             │\n");
     printf("├─────────────────────────────────────────┤\n");

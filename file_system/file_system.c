@@ -1,11 +1,4 @@
-#include <string.h>
-#include <malloc.h>
 #include "file_system.h"
-#include "file_system_implementations/FAT16.h"
-
-
-
-
 
 // Supported operations
 
@@ -23,12 +16,9 @@
 
 // Directories
 
-
-
-
 FormattedVolume* formatted_volume;
 
-bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
+bool fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
     switch (filesystem) {
         case FAT16:
             formatted_volume = formatFAT16Volume(raw_volume);
@@ -36,6 +26,12 @@ bool format_volume(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
         default:
     }
     return false;
+}
+
+void fs_destroy() {
+    formatted_volume->rawVolume->destroy(formatted_volume->rawVolume);
+    free(formatted_volume->volumeInfo);
+    free(formatted_volume);
 }
 
 

@@ -1,22 +1,19 @@
 #include <stdio.h>
-#include "file_system/volume_management/volume.h"
-#include "file_system/volume_management/volume_test.h"
-#include "file_system/file_system.h"
-#include "file_system/file_system_implementations/FAT16.h"
+
+#include "file_system.h"
+
 
 #define GiB 1073741823 // Bytes
 
 
 system_file_data file;
 
+
 int main() {
     printf("Mounting ramdisk\n");
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB);
-    if(test_volume(raw_volume)){
-        return 1;
-    }
 
-    format_volume(raw_volume, FAT16);
+    fs_format(raw_volume, FAT16);
 
 
     system_file_metadata rootdir = {
@@ -96,10 +93,15 @@ int main() {
     fs_create_file(&fileC, file);
     fs_create_file(&fileD, file);
     char* string = (char *) fs_read_file(&fileC);
-    //printf("File content:\n%s",string);
+    printf("File content:\n%s",string);
+    free(string);
+
+    fs_destroy();
 
     return 0;
 }
+
+
 
 system_file_data file =  "We're no strangers to love, you know the rules and so do I\n"
                          "A full commitments what I'm thinking of\n"

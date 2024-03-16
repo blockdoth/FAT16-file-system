@@ -1,11 +1,12 @@
 #ifndef FILE_SYSTEM_FAT16_DEBUG_H
 #define FILE_SYSTEM_FAT16_DEBUG_H
 
-
+#include "FAT16_utility.h"
 #include <stdio.h>
-#include "../file_system.h"
-#include "FAT16.h"
+#include <malloc.h>
+#include <string.h>
 
+#define DEBUG_FAT16
 
 void printBootSector(BootSector *bootSector);
 void printFATTable(FormattedVolume* self);
