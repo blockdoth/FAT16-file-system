@@ -2,16 +2,14 @@
 
 #define FILE_SYSTEM_FAT16_H
 #include "../../file_system.h"
-
 #include "../../volume/volume.h"
+
 #include "stdint.h"
 #include <stdio.h>
 #include <malloc.h>
-
 #include <string.h>
 
-
-
+#define DEBUG_FAT16
 
 #define FAT16_MINIMUM_SIZE 1024
 #define FAT16_ENTRY_SIZE 32

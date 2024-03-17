@@ -1,6 +1,7 @@
 #include "test_framework.h"
 #include "test_config.h"
 
+#define SEQUENTIAL
 
 test_case *test_cases = NULL;
 

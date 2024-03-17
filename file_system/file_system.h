@@ -2,16 +2,11 @@
 #define FILE_SYSTEM_H
 
 #include "volume/volume.h"
+#include "file_system_api.h"
 #include "formats/FAT16/FAT16.h"
+
 #include <string.h>
 #include <malloc.h>
-
-
-typedef enum FILESYSTEM_TYPE{
-    FAT16
-} FILESYSTEM_TYPE;
-
-//TODO Try to move this in FAT16.h
 
 
 typedef struct FileMetadata {
@@ -35,16 +30,6 @@ typedef struct FileMetadata {
 typedef struct FileIdentifier {
     char* identifier;
 }FileIdentifier;
-
-typedef struct system_file {
-    char* name;
-    char* path;
-    uint32_t fileSize;
-    uint8_t read_only : 1;
-    uint8_t hidden : 1;
-    uint8_t archive : 1;
-} system_file_metadata;
-
 typedef struct FATVolumeInfo {
     volume_ptr FAT1Start;
     volume_ptr FAT2Start;
@@ -60,37 +45,52 @@ typedef struct FATVolumeInfo {
     uint16_t bytesPerCluster;
 } FATVolumeInfo;
 
+typedef struct Path {
+    char** path;
+    uint8_t depth;
+} Path;
+
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
-    bool (*writeFile)(struct FormattedVolume* self, FileMetadata* fileMetadata, void* fileData, char* path);
-    bool (*writeDir)(struct FormattedVolume* self, FileMetadata* fileMetadata, char* path);
-    bool (*findFile)(struct FormattedVolume* self, FileMetadata* fileMetadata);
-    void* (*read)( struct FormattedVolume* self, FileMetadata* fileIdentifier, char* path);
+    bool (*createFile)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
+    bool (*createDir)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata);
+    void* (*readFile)(struct FormattedVolume* self, Path path);
+    bool (*checkFile)(struct FormattedVolume* self, Path path);
+    bool (*checkDir)(struct FormattedVolume* self, Path path);
+    uint32_t (*updateFile)(struct FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
 } FormattedVolume;
 
-typedef void* system_file_data;
 
-bool fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
-void fs_destroy();
-
-bool fs_create_file(system_file_metadata* systemFile, void* file_data);
-bool fs_create_dir(system_file_metadata* systemFile);
-void* fs_read_file(system_file_metadata* systemFile);
 
 
 uint16_t getCurrentTimeMs();
 uint16_t getCurrentTime();
 uint16_t getCurrentDate();
 
-FileMetadata convertMetadata(system_file_metadata* systemFile);
-
+FileMetadata initFile(char* path, uint32_t file_size);
+char* extractName(char* path);
+Path parsePath(char* path);
+void destroyPath(Path path);
 // FILE api
 
 FormattedVolume* formatFAT16Volume(RawVolume *volume);
-bool FAT16WriteFile(FormattedVolume* self, FileMetadata* fileMetadata, void* fileData, char* path);
-void* FAT16ReadFile(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
-bool FAT16WriteDir(FormattedVolume* self, FileMetadata* fileMetadata, char* path);
+bool FAT16WriteFile(FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
+bool FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fileMetadata);
+void* FAT16ReadFile(FormattedVolume* self, Path path);
+bool FAT16CheckFile(FormattedVolume* self, Path path);
+bool FAT16CheckDir(FormattedVolume* self, Path path);
+uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
+
+// Supported operations
+
+// │ Operation │  Files  │ Directories  │
+// ├───────────┼─────────┼──────────────┤
+// │ Finding   │   [ ]   │     [ ]      │
+// │ Reading   │   [X]   │     [X]      │
+// │ Writing   │   [X]   │     [X]      │
+// │ Updating  │   [ ]   │     [ ]      │
+
 
 
 

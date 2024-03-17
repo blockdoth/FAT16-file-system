@@ -1,98 +1,46 @@
 #include <stdio.h>
 
-#include "file_system.h"
-
+#include "file_system_api.h"
 
 #define GiB 1073741823 // Bytes
 
 
-system_file_data file;
+//#define DEBUG_VOLUME // Enable debug mode
 
+
+void* rickRoll;
+void* helloWorld = "Hello World";
 
 int main() {
-    printf("Mounting ramdisk\n");
+    //printf("Mounting ramdisk\n");
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB);
 
     fs_format(raw_volume, FAT16);
+    uint32_t rickLen = strlen((char*) rickRoll) + 1;
 
+    fs_create_dir( "#rootDirA");
+    fs_create_dir( "#rootDirA|subDirA");
+    fs_create_dir( "#rootDirA|subDirA|subDirB");
+    fs_create_dir( "#rootDirA|subDirC");
+    fs_create_dir( "#rootDirD");
 
-    system_file_metadata rootdir = {
-            "RootdirA",
-            "",
-            0,
-            0,
-            0,
-            0
-    };
-    system_file_metadata subDirA = {
-            "SubdirA",
-            "RootdirA|",
-            0,
-            0,
-            0,
-            0
-    };
-    system_file_metadata subDirB = {
-            "SubdirB",
-            "RootdirA|SubdirA|",
-            0,
-            0,
-            0,
-            0
-    };
-    system_file_metadata subDirC = {
-            "RootdirB",
-            "",
-            0,
-            0,
-            0,
-            0
-    };
+    fs_create_file("#rootDirA|subDirA|fileA.txt", rickRoll, rickLen);
+    fs_create_file("#rootDirA|subDirA|subDirB|fileB.txt", rickRoll, rickLen);
+    fs_create_file("#rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
+    fs_create_file("#rootDirD|fileC.txt", rickRoll, rickLen);
+    fs_create_file("#hw.txt", helloWorld, 11);
 
-    system_file_metadata fileA = {
-            "FileA.txt",
-            "",
-            strlen((char*) file) + 1,
-            0,
-            0,
-            0
-    };
-    system_file_metadata fileB = {
-            "FileB.txt",
-            "RootdirA|",
-            strlen((char*) file) + 1,
-            0,
-            0,
-            0
-    };
+    char* dirPath = "#rootDirA|subDirA|subDirB";
+    if(fs_dir_exists(dirPath)){
+        printf("Found dir at %s\n", dirPath);
+    }
+    char* filePath = "#rootDirA|subDirA|subDirB|fileB.txt";
+    if(fs_file_exists(filePath)){
+        printf("Found rickRoll at %s\n", filePath);
+    }
 
-    system_file_metadata fileC = {
-            "FileC.txt",
-            "RootdirA|SubdirA|SubdirB|",
-            strlen((char*) file) + 1,
-            0,
-            0,
-            0
-    };
-
-    system_file_metadata fileD = {
-            "FileD.txt",
-            "",
-            strlen((char*) file) + 1,
-            0,
-            0,
-            0
-    };
-    fs_create_dir( &rootdir);
-    fs_create_dir( &subDirA);
-    fs_create_dir( &subDirB);
-    fs_create_dir( &subDirC);
-
-    fs_create_file(&fileA, file);
-    fs_create_file(&fileB, file);
-    fs_create_file(&fileC, file);
-    fs_create_file(&fileD, file);
-    char* string = (char *) fs_read_file(&fileC);
+    fs_update_file("#hw.txt", rickRoll, rickLen);
+    char* string = (char *) fs_read_file("#hw.txt");
     printf("File content:\n%s",string);
     free(string);
 
@@ -103,7 +51,7 @@ int main() {
 
 
 
-system_file_data file =  "We're no strangers to love, you know the rules and so do I\n"
+void* rickRoll = "We're no strangers to love, you know the rules and so do I\n"
                          "A full commitments what I'm thinking of\n"
                          "You wouldn't get this from any other guy.\n"
                          "I just wanna tell you how I'm feeling, gotta make you understand.\n"

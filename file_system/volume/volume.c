@@ -34,9 +34,10 @@ RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t size){
         volume->destroy(volume);
         return NULL; // TODO handle this
     }
+    #ifdef DEBUG_VOLUME
     printf("Successfully mounted rawVolume\n");
+    #endif
     return volume;
 }
 
 
-#undef DEBUG_VOLUME

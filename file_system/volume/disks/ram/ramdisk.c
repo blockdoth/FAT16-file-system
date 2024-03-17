@@ -39,7 +39,7 @@ void* ramdisk_read(RawVolume* self, volume_ptr sourceAddress, uint32_t size){
 
     void* chunk = malloc(size);
     if(chunk == NULL){
-        printf("ERROR:\t Failed to allocate memory for read\n");
+        printf("ERROR:\t Failed to allocate memory for readFile\n");
     }
 
     memcpy(chunk,source,size);

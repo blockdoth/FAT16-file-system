@@ -6,7 +6,6 @@
 #include <malloc.h>
 #include <string.h>
 
-#define DEBUG_FAT16
 
 void printBootSector(BootSector *bootSector);
 void printFATTable(FormattedVolume* self);

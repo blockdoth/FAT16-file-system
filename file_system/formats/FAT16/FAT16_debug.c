@@ -11,7 +11,7 @@ void printRootSectorShort(FormattedVolume* self){
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.name[0] == 0xe5){
-            printf("│ %u Deleted file\t%u - %u\t  │\n",i, entry.fileClusterStart, entry.fileClusterEnd);
+            printf("│ %u Deleted rickRoll\t%u - %u\t  │\n",i, entry.fileClusterStart, entry.fileClusterEnd);
         } else if(entry.attributes == ATTR_DIRECTORY){
             printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.fileClusterStart);
         } else{
@@ -20,11 +20,6 @@ void printRootSectorShort(FormattedVolume* self){
     }
     printf("└─────────────────────────────────────────┘\n");
 }
-
-//for(uint32_t j = 0; j < self->volumeInfo->bytesPerCluster; j++){
-//entry = *(FAT16File *) self->rawVolume->read(self->rawVolume, entry.fileClusterStart + j * FAT16_ENTRY_SIZE, FAT16_ENTRY_SIZE);
-//
-//}
 
 void printTree(FormattedVolume* self){
     printf("─────────────────────────────────────────\n");
