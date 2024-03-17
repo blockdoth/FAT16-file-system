@@ -21,17 +21,35 @@ void printRootSectorShort(FormattedVolume* self){
     printf("└─────────────────────────────────────────┘\n");
 }
 
+
+// Colors list
+const char* colors[] = {
+        RED,
+        ORANGE,
+        YELLOW,
+        GREEN,
+        CYAN,
+        BLUE,
+        PURPLE
+};
+const size_t colorsLength = sizeof(colors) / sizeof(colors[0]);
+size_t colorPointer = 1;
+
+
 void printTree(FormattedVolume* self){
     printf("─────────────────────────────────────────\n");
     printf("Directory structure\n");
     printf("─────────────────────────────────────────\n");
-    printf("Root\n");
+    printf("%sRoot%s\n", colors[colorPointer], RESET);
     printTreeRecursive(self, self->volumeInfo->rootSectionStart, "");
     printf("─────────────────────────────────────────\n");
 
 }
 
 void printTreeRecursive(FormattedVolume* self, volume_ptr tableStart, char* prefix){
+
+    char* color = colors[colorPointer];
+
     FAT16File entry;
     FAT16File nextEntry;
     bool lastEntry;
@@ -46,22 +64,28 @@ void printTreeRecursive(FormattedVolume* self, volume_ptr tableStart, char* pref
         if(entry.name[0] == 0x00){
             break;
         }
-        char* pipe;
-        char* pipePrefix;
+        char* pipe = (char*) malloc(20 * sizeof(char *));
+        char* pipePrefix = (char*) malloc(20 * sizeof(char *));
         if(lastEntry){
-            pipe = " └─ ";
-            pipePrefix = "   ";
+            sprintf(pipe,         "%s └─ %s", color,  RESET);
+            sprintf(pipePrefix, "%s   %s", color, RESET);
         }else{
-            pipe = " ├─ ";
-            pipePrefix = " │ ";
+            sprintf(pipe,         "%s ├─ %s", color, RESET);
+            sprintf(pipePrefix,   "%s │ %s", color, RESET);
         }
+
         char* childPrefix = (char*)malloc( strlen(prefix) + strlen(pipePrefix) + 1); // Make a copy for concat's
         sprintf(childPrefix, "%s%s", prefix, pipePrefix);
 
-        printf("%s%s%s \n",prefix,pipe,entry.name);
+        if(++colorPointer > colorsLength - 1){
+            colorPointer = 0;
+        }
 
         if(entry.attributes == ATTR_DIRECTORY){
+            printf("%s%s%s%s%s\n",prefix,pipe,colors[colorPointer],entry.name, RESET);
             printTreeRecursive(self, entry.fileClusterStart, childPrefix);
+        }else{
+            printf("%s%s%s%s%s\n",prefix,pipe,colors[colorPointer],entry.name, RESET);
         }
         free(childPrefix);
     }

@@ -5,7 +5,8 @@
 #include "stdbool.h"
 #include <string.h>
 #include <malloc.h>
-#include "volume_ptr.h"
+#include "../common_types.h"
+//#include "../file_system_api.h"
 
 typedef enum VOLUME_TYPE{
     RAM_DISK,
@@ -16,9 +17,9 @@ typedef enum VOLUME_TYPE{
 typedef struct RawVolume {
     void* volumeData;
     uint32_t volumeSize;
-    bool (*init)(struct RawVolume* self, uint32_t volumeSize);
+    FS_STATUS_CODE (*init)(struct RawVolume* self, uint32_t volumeSize);
     void (*destroy)(struct RawVolume* self);
-    bool (*write)(struct RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize);
+    FS_STATUS_CODE (*write)(struct RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize);
     void* (*read)(struct RawVolume* self, volume_ptr src_addr, uint32_t dataSize);
 } RawVolume;
 
@@ -26,6 +27,6 @@ typedef struct RawVolume {
 RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t volumeSize);
 
 // Util
-bool bounds_check(RawVolume* self, uint32_t start_addr, uint32_t dataSize);
+FS_STATUS_CODE bounds_check(RawVolume* self, uint32_t start_addr, uint32_t dataSize);
 
 #endif //FILE_SYSTEM_VOLUME_H

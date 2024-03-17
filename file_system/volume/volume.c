@@ -3,16 +3,16 @@
 #include "disks/flash/flashdisk.h"
 
 
-bool bounds_check(RawVolume* self, uint32_t start_addr, uint32_t size){
+FS_STATUS_CODE bounds_check(RawVolume* self, uint32_t start_addr, uint32_t size){
     if((start_addr + size) > self->volumeSize){
         if (start_addr > self->volumeSize){
             printf("ERROR:\t Address %u out of bounds of rawVolume\n", start_addr);
         }else{
             printf("ERROR:\t Allocation of %u to large from start address %u\n", size, start_addr);
         }
-        return 1;
+        return FS_SUCCES;
     }
-    return 0;
+    return FS_OUT_OF_BOUNDS;
 }
 
 

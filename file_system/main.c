@@ -28,7 +28,8 @@ int main() {
     fs_create_file("#rootDirA|subDirA|subDirB|fileB.txt", rickRoll, rickLen);
     fs_create_file("#rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
     fs_create_file("#rootDirD|fileC.txt", rickRoll, rickLen);
-    fs_create_file("#hw.txt", helloWorld, 11);
+    fs_create_file("#fileD", helloWorld, 11);
+    fs_create_file("#rootDirA", helloWorld, 11);
 
     char* dirPath = "#rootDirA|subDirA|subDirB";
     if(fs_dir_exists(dirPath)){
@@ -39,8 +40,8 @@ int main() {
         printf("Found rickRoll at %s\n", filePath);
     }
 
-    fs_update_file("#hw.txt", rickRoll, rickLen);
-    char* string = (char *) fs_read_file("#hw.txt");
+    uint32_t newSize = fs_update_file("#fileD.txt", rickRoll, rickLen);
+    char* string = (char *) fs_read_file("#fileD");
     printf("File content:\n%s",string);
     free(string);
 

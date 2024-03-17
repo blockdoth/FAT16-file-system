@@ -1,7 +1,7 @@
 #include "flashdisk.h"
 
 
-bool flashdisk_init(RawVolume* self, uint32_t volume_size){
+FS_STATUS_CODE flashdisk_init(RawVolume* self, uint32_t volume_size){
     // TODO implement
     return false;
 }
@@ -9,7 +9,7 @@ void flashdisk_destroy(RawVolume* self){
     // TODO implement
 }
 
-bool flashdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t size){
+FS_STATUS_CODE flashdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t size){
     if(bounds_check(self, destinationAddress, size)){
         return false;
     }

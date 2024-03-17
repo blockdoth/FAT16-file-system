@@ -3,7 +3,7 @@
 #include "string.h"
 #include "stdint.h"
 #include "stdio.h"
-#include "../volume_ptr.h"
+#include "../../common_types.h"
 
 
 #define DEBUG_BUFFER_SIZE 50

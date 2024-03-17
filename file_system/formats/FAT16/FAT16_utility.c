@@ -1,17 +1,17 @@
 #include "FAT16_utility.h"
 
-void writeSector(FormattedVolume *self, volume_ptr sector, void *data, uint32_t dataSize) {
+FS_STATUS_CODE writeSector(FormattedVolume *self, volume_ptr sector, void *data, uint32_t dataSize) {
     volume_ptr adjustedAddress =
             self->volumeInfo->dataSectionStart * self->volumeInfo->bytesPerSector +
             sector * self->volumeInfo->bytesPerSector;
-    self->rawVolume->write(self->rawVolume, data,adjustedAddress, dataSize);
+    return self->rawVolume->write(self->rawVolume, data,adjustedAddress, dataSize);
 }
 
-void writePartialSector(FormattedVolume* self, volume_ptr sector, uint32_t bytesOffset, void* data, uint32_t dataSize){
+FS_STATUS_CODE writePartialSector(FormattedVolume* self, volume_ptr sector, uint32_t bytesOffset, void* data, uint32_t dataSize){
     volume_ptr adjustedAddress =
             self->volumeInfo->dataSectionStart * self->volumeInfo->bytesPerSector +
             sector * self->volumeInfo->bytesPerSector + bytesOffset;
-    self->rawVolume->write(self->rawVolume, data,adjustedAddress, dataSize);
+    return self->rawVolume->write(self->rawVolume, data,adjustedAddress, dataSize);
 }
 
 void* readSector(FormattedVolume* self, volume_ptr sector, uint32_t size){
@@ -19,7 +19,7 @@ void* readSector(FormattedVolume* self, volume_ptr sector, uint32_t size){
     return self->rawVolume->read(self->rawVolume, adjustedAddress, size);
 }
 
-void writeFileEntry(FormattedVolume* self, FAT16File fileMetadata, volume_ptr entryTable, volume_ptr startSector, volume_ptr endSector){
+FS_STATUS_CODE writeFileEntry(FormattedVolume* self, FAT16File fileMetadata, volume_ptr entryTable, volume_ptr startSector, volume_ptr endSector){
     fileMetadata.fileClusterStart = startSector;
     fileMetadata.fileClusterEnd = endSector;
 
@@ -33,7 +33,7 @@ void writeFileEntry(FormattedVolume* self, FAT16File fileMetadata, volume_ptr en
         }
     }
     uint32_t adjustedAddress = entryTable * self->volumeInfo->bytesPerCluster + i * FAT16_ENTRY_SIZE;
-    self->rawVolume->write(self->rawVolume, &fileMetadata, adjustedAddress, FAT16_ENTRY_SIZE);
+    return self->rawVolume->write(self->rawVolume, &fileMetadata, adjustedAddress, FAT16_ENTRY_SIZE);
 }
 
 // tableStart => Cluster address of entry table
@@ -46,23 +46,25 @@ FAT16File readFileEntry(FormattedVolume* self, volume_ptr tableStart, uint32_t i
     return FileEntry;
 }
 
-void updateFAT16Entry(FormattedVolume* self, volume_ptr entryTable, FAT16File fat16File){
+FS_STATUS_CODE updateFAT16Entry(FormattedVolume* self, volume_ptr entryTable, FAT16File fat16File){
     uint32_t maxEntries = calculateMaxEntries(self, entryTable);
     for(int32_t i = 0; i < maxEntries; i++) {
         FAT16File entry = readFileEntry(self, entryTable, i);
         if(strcmp(entry.name, fat16File.name) == 0){
             uint32_t adjustedAddress = entryTable * self->volumeInfo->bytesPerCluster + i * FAT16_ENTRY_SIZE;
-            self->rawVolume->write(self->rawVolume, &fat16File, adjustedAddress, FAT16_ENTRY_SIZE);
+            return self->rawVolume->write(self->rawVolume, &fat16File, adjustedAddress, FAT16_ENTRY_SIZE);
             break;
         }
     }
+    return FS_ILLEGAL_STATE;
 }
 
 
 // nextSector => Cluster address of next entry
-void writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector){
-    self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT1Start * self->volumeInfo->bytesPerCluster + 2 * index, 2);
-    self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT2Start * self->volumeInfo->bytesPerCluster + 2 * index, 2);
+FS_STATUS_CODE writeFATS(FormattedVolume* self, volume_ptr index, void *nextSector){
+    FS_STATUS_CODE fat1 = self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT1Start * self->volumeInfo->bytesPerCluster + 2 * index, 2);
+    FS_STATUS_CODE fat2 = self->rawVolume->write(self->rawVolume, nextSector, self->volumeInfo->FAT2Start * self->volumeInfo->bytesPerCluster + 2 * index, 2);
+    return fat1 && fat2;
 }
 
 uint16_t readFATS(FormattedVolume* self, uint32_t index){
@@ -118,7 +120,6 @@ volume_ptr findFreeCluster(FormattedVolume* self){
 }
 
 FAT16File findEntryInTable(FormattedVolume *self, volume_ptr startTable, char *name) {
-
     for (volume_ptr i = 0; i < self->volumeInfo->rootSectorCount; i++) {
         FAT16File entry = readFileEntry(self, startTable, i);
         if(entry.name[0] != 0x00){
@@ -146,14 +147,18 @@ uint32_t calculateMaxEntries(FormattedVolume* self, volume_ptr entryTable){
     }
 }
 
-bool checkNamingCollusion(FormattedVolume* self, volume_ptr entryTable, char* name, bool lookingForDir){
+FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, volume_ptr entryTable, char* name, bool lookingForDir){
     FAT16File entry = findEntryInTable(self, entryTable, name);
     if(strcmp(entry.name, name) == 0){
         if((entry.attributes && ATTR_DIRECTORY) == lookingForDir){
-            return true;
+            return FS_SUCCES;
         }
     }
-    return false;
+    if(lookingForDir){
+        return FS_DIRECTORY_NOT_FOUND;
+    }else{
+        return FS_FILE_NOT_FOUND;
+    }
 }
 
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
@@ -246,8 +251,12 @@ FATVolumeInfo* initFATVolumeInfo(BootSector bootSector) {
 
 
 
-bool checkFAT16Compatible(RawVolume *raw_volume) {
-    return raw_volume->volumeSize < FAT16_MINIMUM_SIZE;
+FS_STATUS_CODE checkFAT16Compatible(RawVolume *raw_volume) {
+    if(raw_volume->volumeSize < FAT16_MINIMUM_SIZE){
+        return FS_VOLUME_TO_SMALL;
+    }else{
+        return FS_SUCCES;
+    }
 }
 
 

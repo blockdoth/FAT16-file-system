@@ -8,15 +8,15 @@ typedef enum FILESYSTEM_TYPE{
 } FILESYSTEM_TYPE;
 
 
-bool fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
+FS_STATUS_CODE fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
 void fs_destroy();
 
-bool fs_file_exists(char* path);
-bool fs_create_file(char* path, void* file_data, uint32_t file_size);
+FS_STATUS_CODE fs_file_exists(char* path);
+FS_STATUS_CODE fs_create_file(char* path, void* file_data, uint32_t file_size);
 uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size);
 void* fs_read_file(char* path);
 
-bool fs_dir_exists(char* path);
-bool fs_create_dir(char* path);
+FS_STATUS_CODE fs_dir_exists(char* path);
+FS_STATUS_CODE fs_create_dir(char* path);
 
 #endif //FILE_SYSTEM_FILE_SYSTEM_API_H

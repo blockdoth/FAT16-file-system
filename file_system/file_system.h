@@ -53,11 +53,11 @@ typedef struct Path {
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     FATVolumeInfo* volumeInfo;
-    bool (*createFile)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
-    bool (*createDir)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata);
+    FS_STATUS_CODE (*createFile)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
+    FS_STATUS_CODE (*createDir)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata);
     void* (*readFile)(struct FormattedVolume* self, Path path);
-    bool (*checkFile)(struct FormattedVolume* self, Path path);
-    bool (*checkDir)(struct FormattedVolume* self, Path path);
+    FS_STATUS_CODE (*checkFile)(struct FormattedVolume* self, Path path);
+    FS_STATUS_CODE (*checkDir)(struct FormattedVolume* self, Path path);
     uint32_t (*updateFile)(struct FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
 } FormattedVolume;
 
@@ -70,16 +70,17 @@ uint16_t getCurrentDate();
 
 FileMetadata initFile(char* path, uint32_t file_size);
 char* extractName(char* path);
+FS_STATUS_CODE checkValidPath(char* path);
 Path parsePath(char* path);
 void destroyPath(Path path);
 // FILE api
 
 FormattedVolume* formatFAT16Volume(RawVolume *volume);
-bool FAT16WriteFile(FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
-bool FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fileMetadata);
+FS_STATUS_CODE FAT16WriteFile(FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
+FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fileMetadata);
 void* FAT16ReadFile(FormattedVolume* self, Path path);
-bool FAT16CheckFile(FormattedVolume* self, Path path);
-bool FAT16CheckDir(FormattedVolume* self, Path path);
+FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path path);
+FS_STATUS_CODE FAT16CheckDir(FormattedVolume* self, Path path);
 uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
 
 // Supported operations

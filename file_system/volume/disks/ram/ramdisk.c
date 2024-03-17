@@ -1,7 +1,7 @@
 #include "ramdisk.h"
 #include "../disk_debug.h"
 
-bool ramdisk_init(RawVolume* self, uint32_t volume_size){
+FS_STATUS_CODE ramdisk_init(RawVolume* self, uint32_t volume_size){
     self->volumeData = malloc(volume_size);
     if(self->volumeData == NULL){
         printf("ERROR:\t Failed to allocate ram disk");
@@ -9,7 +9,7 @@ bool ramdisk_init(RawVolume* self, uint32_t volume_size){
     }
     self->volumeSize = volume_size;
     initDebugLog(volume_size);
-    return true;
+    return FS_SUCCES;
 }
 void ramdisk_destroy(RawVolume* self){
     initDebugLog(self->volumeSize);
@@ -17,9 +17,9 @@ void ramdisk_destroy(RawVolume* self){
     free(self);
 }
 
-bool ramdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t size){
+FS_STATUS_CODE ramdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t size){
     if(bounds_check(self, destinationAddress, size)){
-        return false;
+        return FS_OUT_OF_BOUNDS;
     }
     uint32_t* destination = (uint32_t*) (self->volumeData + destinationAddress);
     if(sourceAddress == NULL){
@@ -29,7 +29,7 @@ bool ramdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationA
         writeDebugLog((char*) sourceAddress, destinationAddress, size);
         memcpy(destination,sourceAddress,size);
     }
-    return true;
+    return FS_SUCCES;
 }
 void* ramdisk_read(RawVolume* self, volume_ptr sourceAddress, uint32_t size){
     if(bounds_check(self, sourceAddress, size)){
@@ -40,6 +40,7 @@ void* ramdisk_read(RawVolume* self, volume_ptr sourceAddress, uint32_t size){
     void* chunk = malloc(size);
     if(chunk == NULL){
         printf("ERROR:\t Failed to allocate memory for readFile\n");
+        return NULL;
     }
 
     memcpy(chunk,source,size);

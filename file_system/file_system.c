@@ -3,14 +3,14 @@
 
 FormattedVolume* formatted_volume;
 
-bool fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
+FS_STATUS_CODE fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
     switch (filesystem) {
         case FAT16:
             formatted_volume = formatFAT16Volume(raw_volume);
-            return true;
+            return FS_SUCCES;
         default:
     }
-    return false;
+    return FS_FORMAT_NOT_SUPPORTED;
 }
 
 void fs_destroy() {
@@ -20,14 +20,20 @@ void fs_destroy() {
 }
 
 
-bool fs_create_file(char* path, void* file_data, uint32_t file_size){
+FS_STATUS_CODE fs_create_file(char* path, void* file_data, uint32_t file_size){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
     Path resolvedPath = parsePath(path);
     FileMetadata fileMetadata = initFile(path, file_size);
     return formatted_volume->createFile(formatted_volume, resolvedPath, &fileMetadata, file_data);
 }
 
 
-bool fs_create_dir(char* path){
+FS_STATUS_CODE fs_create_dir(char* path){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
     Path resolvedPath = parsePath(path);
     FileMetadata fileMetadata = initFile(path, 0);
     fileMetadata.directory = 1;
@@ -35,19 +41,31 @@ bool fs_create_dir(char* path){
 }
 
 void* fs_read_file(char* path){
+    if(!checkValidPath(path)){
+        return NULL;
+    }
     Path resolvedPath = parsePath(path);
     return formatted_volume->readFile(formatted_volume, resolvedPath);
 }
 
-bool fs_file_exists(char* path){
+FS_STATUS_CODE fs_file_exists(char* path){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
     Path resolvedPath = parsePath(path);
     return formatted_volume->checkFile(formatted_volume,resolvedPath);
 }
-bool fs_dir_exists(char* path){
+FS_STATUS_CODE fs_dir_exists(char* path){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
     Path resolvedPath = parsePath(path);
     return formatted_volume->checkDir(formatted_volume,resolvedPath);
 }
 uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
     Path resolvedPath = parsePath(path);
     return formatted_volume->updateFile(formatted_volume, resolvedPath, data, new_file_size);
 }
@@ -76,6 +94,12 @@ FileMetadata initFile(char* path, uint32_t file_size){
     return fileMetadata;
 }
 
+FS_STATUS_CODE checkValidPath(char* path){
+    if(path[0] != '#' || path[0] == '\0'){
+        return FS_INVALID_PATH;
+    }
+    return FS_SUCCES;
+}
 
 Path parsePath(char* path){
 //    if(*path == '\0'){
