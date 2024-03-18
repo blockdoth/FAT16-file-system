@@ -59,6 +59,8 @@ typedef struct FormattedVolume {
     FS_STATUS_CODE (*checkFile)(struct FormattedVolume* self, Path path);
     FS_STATUS_CODE (*checkDir)(struct FormattedVolume* self, Path path);
     uint32_t (*updateFile)(struct FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
+    FS_STATUS_CODE (*deleteDir)(struct FormattedVolume *self, Path path);
+    FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path path);
 } FormattedVolume;
 
 
@@ -82,6 +84,9 @@ void* FAT16ReadFile(FormattedVolume* self, Path path);
 FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path path);
 FS_STATUS_CODE FAT16CheckDir(FormattedVolume* self, Path path);
 uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
+
+FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path path);
+FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path path);
 
 // Supported operations
 

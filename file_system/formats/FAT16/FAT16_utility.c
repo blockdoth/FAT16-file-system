@@ -46,7 +46,7 @@ FAT16File readFileEntry(FormattedVolume* self, volume_ptr tableStart, uint32_t i
     return FileEntry;
 }
 
-FS_STATUS_CODE updateFAT16Entry(FormattedVolume* self, volume_ptr entryTable, FAT16File fat16File){
+FS_STATUS_CODE updateEntry(FormattedVolume* self, volume_ptr entryTable, FAT16File fat16File){
     uint32_t maxEntries = calculateMaxEntries(self, entryTable);
     for(int32_t i = 0; i < maxEntries; i++) {
         FAT16File entry = readFileEntry(self, entryTable, i);
@@ -95,7 +95,7 @@ volume_ptr resolveFileTable(FormattedVolume *self, Path path) {
             #endif
             return false;
         }
-        if(entry.attributes != ATTR_DIRECTORY){
+        if(!isDir(entry)){
             #ifdef DEBUG_FAT16
             printf("ERROR: %s is not a directory\n", entry.name);
             #endif
@@ -103,7 +103,6 @@ volume_ptr resolveFileTable(FormattedVolume *self, Path path) {
         }
         free(path.path[i]);
     }
-    // TODO handle duplication
     return entryTable;
 }
 
@@ -119,15 +118,15 @@ volume_ptr findFreeCluster(FormattedVolume* self){
     return 0;
 }
 
-FAT16File findEntryInTable(FormattedVolume *self, volume_ptr startTable, char *name) {
+FAT16File findEntryInTable(FormattedVolume *self, volume_ptr entryTable, char *name) {
     for (volume_ptr i = 0; i < self->volumeInfo->rootSectorCount; i++) {
-        FAT16File entry = readFileEntry(self, startTable, i);
+        FAT16File entry = readFileEntry(self, entryTable, i);
         if(entry.name[0] != 0x00){
             if(strcmp(entry.name, name) == 0){
                 // TODO support the actual FAT16 naming format and longer filenames
                 #ifdef DEBUG_FAT16
                 printf("Found %s of size %u in the FAT at sector %u pointing to sector %u\n",
-                       entry.name, entry.fileSize, startTable, entry.fileClusterStart);
+                       entry.name, entry.fileSize, entryTable, entry.fileClusterStart);
                 #endif
                 return entry;
             }
@@ -136,8 +135,41 @@ FAT16File findEntryInTable(FormattedVolume *self, volume_ptr startTable, char *n
 
     return (FAT16File){
             .reserved = 1
-    }; //TODO error handling and make this not hacky
+    };
 }
+
+FS_STATUS_CODE deleteEntry(FormattedVolume *self, volume_ptr entryTable, char *name, bool lookingForDir) {
+    for (volume_ptr i = 0; i < self->volumeInfo->rootSectorCount; i++) {
+        FAT16File entry = readFileEntry(self, entryTable, i);
+        if(entry.name[0] != 0x00){
+            if(strcmp(entry.name, name) == 0){
+                if(isDir(entry) == lookingForDir){
+                    #ifdef DEBUG_FAT16
+                    printf("Deleting %s of size %u at sector %u pointing to sector %u\n",
+                           entry.name, entry.fileSize, entryTable, entry.fileClusterStart);
+                    #endif
+                    entry.name[0] = 0xe5; // Mark file as deleted
+                    uint32_t adjustedAddress = entryTable * self->volumeInfo->bytesPerCluster + i * FAT16_ENTRY_SIZE;
+                    self->rawVolume->write(self->rawVolume, &entry, adjustedAddress, FAT16_ENTRY_SIZE);
+
+                    return FS_SUCCES;
+                } else{
+                    if(lookingForDir){
+                        return FS_SOUGHT_DIR_FOUND_FILE;
+                    } else{
+                        return FS_SOUGHT_FILE_FOUND_DIR;
+                    }
+                }
+            }
+        }
+    }
+    if(lookingForDir){
+        return FS_DIRECTORY_NOT_FOUND;
+    }else{
+        return FS_FILE_NOT_FOUND;
+    }
+}
+
 
 uint32_t calculateMaxEntries(FormattedVolume* self, volume_ptr entryTable){
     if(self->volumeInfo->rootSectionStart == entryTable){
@@ -150,7 +182,7 @@ uint32_t calculateMaxEntries(FormattedVolume* self, volume_ptr entryTable){
 FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, volume_ptr entryTable, char* name, bool lookingForDir){
     FAT16File entry = findEntryInTable(self, entryTable, name);
     if(strcmp(entry.name, name) == 0){
-        if((entry.attributes && ATTR_DIRECTORY) == lookingForDir){
+        if(isDir(entry) == lookingForDir){
             return FS_SUCCES;
         }
     }
@@ -164,19 +196,19 @@ FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, volume_ptr entryTable
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
     FAT16File fat16File;
 
-    memcpy(fat16File.name, fileMetadata->name, FAT16_ENTRY_BASE_NAME_LENGTH); // TODO support long rickRoll names
+    memcpy(fat16File.name, fileMetadata->name, FAT16_ENTRY_BASE_NAME_LENGTH); // TODO support long file names
     fat16File.name[10] = '\0';
 
-    fat16File.attributes = convertToDirAttributes(fileMetadata); //TODO createFile converter
+    fat16File.attributes = convertToDirAttributes(fileMetadata);
     fat16File.reserved = 0;
     fat16File.creationTimeTenth = fileMetadata->creationTimeTenth;
     fat16File.creationTime = fileMetadata->creationTime;
     fat16File.creationDate = fileMetadata->creationDate;
     fat16File.lastAccessedDate = fileMetadata->creationDate;
-    fat16File.fileClusterStart = 0;
     fat16File.timeOfLastWrite = fileMetadata->creationTime;
     fat16File.dateOfLastWrite = fileMetadata->creationDate;
-    fat16File.fileClusterEnd = 0; // TODO
+    fat16File.fileClusterStart = 0;
+    fat16File.fileClusterEnd = 0;
     fat16File.fileSize = fileMetadata->fileSize;
     return fat16File;
 }
@@ -209,12 +241,12 @@ BootSector initBootSector(uint32_t volumeSize){
             512,
             0,
             0xfa,
-            0, //TODO
-            0, // Not relevant
-            0, // Not relevant
             0,
             0,
-            0, // TODO
+            0,
+            0,
+            0,
+            0,
             1,
             0x29,
             0, //TODO Set this field
@@ -257,6 +289,10 @@ FS_STATUS_CODE checkFAT16Compatible(RawVolume *raw_volume) {
     }else{
         return FS_SUCCES;
     }
+}
+
+bool isDir(FAT16File entry){
+    return entry.attributes && ATTR_DIRECTORY;
 }
 
 

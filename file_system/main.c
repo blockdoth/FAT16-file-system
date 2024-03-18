@@ -29,21 +29,35 @@ int main() {
     fs_create_file("#rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
     fs_create_file("#rootDirD|fileC.txt", rickRoll, rickLen);
     fs_create_file("#fileD", helloWorld, 11);
-    fs_create_file("#rootDirA", helloWorld, 11);
+    fs_create_file("#fileE", helloWorld, 11);
 
     char* dirPath = "#rootDirA|subDirA|subDirB";
     if(fs_dir_exists(dirPath)){
         printf("Found dir at %s\n", dirPath);
     }
-    char* filePath = "#rootDirA|subDirA|subDirB|fileB.txt";
+    char* filePath = "#fileE";
     if(fs_file_exists(filePath)){
         printf("Found rickRoll at %s\n", filePath);
     }
+    fs_delete_file(filePath);
+    if(!fs_file_exists(filePath)){
+        printf("File %s has been deleted\n", filePath);
+    }else{
+        printf("File %s stil exists\n", filePath);
+    }
+    char* dir = "#rootDirA|subDirA";
+    fs_delete_dir(dir, true);
+    if(!fs_dir_exists(dir)){
+        printf("Dir %s has been deleted\n", dir);
+    }else{
+        printf("File %s stil exists\n", dir);
+    }
 
-    uint32_t newSize = fs_update_file("#fileD.txt", rickRoll, rickLen);
-    char* string = (char *) fs_read_file("#fileD");
-    printf("File content:\n%s",string);
-    free(string);
+
+//    uint32_t newSize = fs_update_file("#fileD.txt", rickRoll, rickLen);
+//    char* string = (char *) fs_read_file("#fileD");
+//    printf("File content:\n%s",string);
+//    free(string);
 
     fs_destroy();
 

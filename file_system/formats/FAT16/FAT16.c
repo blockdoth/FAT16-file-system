@@ -14,13 +14,15 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInf
     formattedVolume->checkDir = FAT16CheckDir;
     formattedVolume->checkFile = FAT16CheckFile;
     formattedVolume->updateFile = FAT16UpdateFile;
+    formattedVolume->deleteDir = FAT16DeleteDir;
+    formattedVolume->deleteFile = FAT16DeleteFile;
     return formattedVolume;
 }
 
 
 FormattedVolume* formatFAT16Volume(RawVolume *volume) {
     if(!checkFAT16Compatible(volume)){
-        return NULL; //TODO handle
+        return NULL;
     }
 
     BootSector bootSector = initBootSector(volume->volumeSize);
@@ -48,6 +50,7 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
 
     #ifdef DEBUG_FAT16
     printf("Formatting a rawVolume of size %u bytes\n", volume->volumeSize);
+    printBootSector(formattedVolume);
     printFATTable(formattedVolume);
     printFAT16Layout(formattedVolume);
     #endif
@@ -60,13 +63,12 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
 FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path path, FileMetadata* fileMetadata, void* fileData){
     volume_ptr entryTable = resolveFileTable(self, path);
     if(checkNamingCollusion(self, entryTable, fileMetadata->name, false) == true){
-        // Naming collision, TODO error handling
         return FS_FILE_ALREADY_EXISTS;
     }
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata); // Consumes fileMetadata
     volume_ptr startCluster = findFreeCluster(self);
     if(startCluster == 0){
-        return FS_OUT_OF_SPACE; //TODO ma
+        return FS_OUT_OF_SPACE;
     }
 
     volume_ptr currentCluster = startCluster;
@@ -119,7 +121,6 @@ uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint3
     volume_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     if(checkNamingCollusion(self, entryTable, name, false) == false){
-        // File not found // TODO error handling
         return -1;
     }
     FAT16File fat16File = findEntryInTable(self, entryTable, name);
@@ -176,7 +177,7 @@ uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint3
         );
     }
     fat16File.fileClusterEnd = currentCluster;
-    updateFAT16Entry(self, entryTable, fat16File);
+    updateEntry(self, entryTable, fat16File);
     destroyPath(path);
     return fat16File.fileSize;
 }
@@ -184,7 +185,6 @@ uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint3
 FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fileMetadata){
     volume_ptr entryTable = resolveFileTable(self, path);
     if(checkNamingCollusion(self, entryTable, fileMetadata->name, true) == true){
-        // Naming collisions // TODO error handling
         return FS_DIRECTORY_ALREADY_EXISTS;
     }
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata); // Consumes fileMetadata
@@ -212,7 +212,6 @@ void* FAT16ReadFile(FormattedVolume* self, Path path) {
     volume_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     if(checkNamingCollusion(self, entryTable, name, false) == FS_FILE_NOT_FOUND){
-        // File not found // TODO error handling
         return NULL;
     }
     FAT16File fat16File = findEntryInTable(self, entryTable, name);
@@ -233,7 +232,7 @@ void* FAT16ReadFile(FormattedVolume* self, Path path) {
         readFile += self->volumeInfo->bytesPerCluster;
     }
     destroyPath(path);
-    return startOfFile; // TODO Add more metadata
+    return startOfFile;
 }
 
 FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path path){
@@ -249,5 +248,27 @@ FS_STATUS_CODE FAT16CheckDir(FormattedVolume* self, Path path){
     return checkNamingCollusion(self, entryTable, name, true);
 }
 
+FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path path){
+    volume_ptr entryTable = resolveFileTable(self, path);
+    char* name = path.path[path.depth];
+    destroyPath(path);
 
+    FS_STATUS_CODE statusCode = deleteEntry(self, entryTable, name, false);
+    #ifdef DEBUG_FAT16
+    printRootSectorShort(self);
+    printTree(self);
+    #endif
+    return statusCode;
+}
+FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path path) {
+    volume_ptr entryTable = resolveFileTable(self, path);
+    char* name = path.path[path.depth];
+    destroyPath(path);
+    FS_STATUS_CODE statusCode = deleteEntry(self, entryTable, name, true);
+    #ifdef DEBUG_FAT16
+    printRootSectorShort(self);
+    printTree(self);
+    #endif
+    return statusCode;
+}
 

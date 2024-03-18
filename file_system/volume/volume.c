@@ -32,7 +32,7 @@ RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t size){
     if(volume->init(volume, size) == false){
         printf("Failed to mount rawVolume\n");
         volume->destroy(volume);
-        return NULL; // TODO handle this
+        return NULL;
     }
     #ifdef DEBUG_VOLUME
     printf("Successfully mounted rawVolume\n");

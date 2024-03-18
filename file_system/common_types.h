@@ -17,6 +17,11 @@ typedef enum FS_STATUS_CODE {
     FS_VOLUME_TO_SMALL = false,
     FS_ILLEGAL_STATE = false,
     FS_INVALID_PATH = false,
+    FS_NOT_IMPLEMENTED = false,
+    FS_OPERATION_NOT_SUPPORTED_ON_DIR = false,
+    FS_OPERATION_NOT_SUPPORTED_ON_FILE = false,
+    FS_SOUGHT_FILE_FOUND_DIR = false,
+    FS_SOUGHT_DIR_FOUND_FILE = false,
 } FS_STATUS_CODE;
 
 

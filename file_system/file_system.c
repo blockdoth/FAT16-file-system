@@ -94,6 +94,23 @@ FileMetadata initFile(char* path, uint32_t file_size){
     return fileMetadata;
 }
 
+FS_STATUS_CODE fs_delete_dir(char* path, bool recursive){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
+    Path resolvedPath = parsePath(path);
+    return formatted_volume->deleteDir(formatted_volume, resolvedPath);
+}
+
+FS_STATUS_CODE fs_delete_file(char* path){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
+    Path resolvedPath = parsePath(path);
+    return formatted_volume->deleteFile(formatted_volume, resolvedPath);
+}
+
+
 FS_STATUS_CODE checkValidPath(char* path){
     if(path[0] != '#' || path[0] == '\0'){
         return FS_INVALID_PATH;
