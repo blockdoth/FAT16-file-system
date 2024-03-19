@@ -2,7 +2,8 @@
 
 typedef struct Entry {
     FAT16File* entry;
-    sector_ptr sector;
+    sector_ptr sectorPtr;
+    void* sector;
     uint32_t inSectorOffset;
 } Entry;
 
@@ -14,11 +15,20 @@ FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data,
 }
 
 FS_STATUS_CODE writeDataSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size) {
+    if(size > self->info->bytesPerSector){
+        return FS_OUT_OF_BOUNDS;
+    }
     return writeSector(self, self->info->dataSectionStart + sector, data, size);
 }
 
 void* readSector(FormattedVolume* self, sector_ptr sector){
     return self->rawVolume->read(self->rawVolume, sector * self->info->bytesPerSector, self->info->bytesPerSector);
+}
+
+void* readSectorSize(FormattedVolume* self, sector_ptr sector, uint32_t size){
+    void* chunk = self->rawVolume->read(self->rawVolume, sector * self->info->bytesPerSector, self->info->bytesPerSector);
+    chunk = realloc(chunk, size);
+    return chunk;
 }
 
 void *readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector) {
@@ -39,37 +49,13 @@ FS_STATUS_CODE updateSector(FormattedVolume *self, sector_ptr sector, void *data
         return FS_OUT_OF_BOUNDS;
     }
     void* chunk = readSector(self, sector);
-    memcpy(chunk + offset, data, size);
+    void* ptr = (void*)(chunk + offset);
+    memcpy(ptr, data, size);
     writeSector(self, sector, chunk, self->info->bytesPerSector);
     return FS_SUCCES;
 }
 
 Entry findFreeEntry(FormattedVolume* self, cluster_ptr entryTable){
-    sector_ptr currentSector = entryTable;
-    void* sector = readSector(self,currentSector);
-
-    FAT16File* entry = malloc(sizeof(FAT16File));
-
-    uint32_t entriesRead = 0;
-    uint32_t maxEntries = calculateMaxEntries(self, entryTable);
-    uint32_t offset;
-    while(entriesRead < maxEntries){
-        for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
-            entry = memcpy(entry, sector + offset * FAT16_ENTRY_SIZE, 2);
-            entriesRead++;
-            if(entry->name[0] == 0x00 || entry->name[0] == 0xe5){
-                break;
-            }
-        }
-        currentSector++;
-        sector = readSector(self,ccurrentSector);
-    }
-
-
-
-}
-
-Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name){
     FAT16File* entry = malloc(sizeof(FAT16File));
     void* sector;
 
@@ -82,115 +68,118 @@ Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name){
         for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
             entry = memcpy(entry, sector + offset * FAT16_ENTRY_SIZE, 2);
             entriesRead++;
-            if(strcmp(entry->name, name) == 0){
+            if(entry->name[0] == 0x00 || entry->name[0] == 0xe5){
                 return (Entry){
-                    entry,
-                    currentSector,
-                    offset * FAT16_ENTRY_SIZE,
+                        entry,
+                        currentSector,
+                        sector,
+                        offset * FAT16_ENTRY_SIZE,
                 };
             }
         }
+        free(sector);
+        currentSector++;
+    }
+    return (Entry) { // TODO check this
+            NULL,
+            0,
+            0
+    };
+}
+
+Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name){
+    FAT16File* entry = malloc(sizeof(FAT16File));
+    void* sector;
+
+    uint32_t maxEntries = calculateMaxEntries(self, entryTable); // TODO remove this maybe
+    sector_ptr currentSector = entryTable;
+    uint32_t entriesRead = 0;
+    uint32_t offset;
+    while(entriesRead < maxEntries){
+        sector = readSector(self,currentSector);
+        for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
+            entry = memcpy(entry, sector + offset * FAT16_ENTRY_SIZE, 2);
+            entriesRead++;
+            if(entry->name == 0x00){
+                entriesRead = -1; // Break out of while loop
+                break;
+            }
+            if(strcmp(entry->name, name) == 0){
+                return (Entry){
+                        entry,
+                        currentSector,
+                        sector,
+                        offset * FAT16_ENTRY_SIZE,
+                };
+            }
+        }
+        free(sector);
         currentSector++;
     }
     return (Entry) { // TODO check this
         NULL,
         0,
+        NULL,
         0
     };
 }
 
 FS_STATUS_CODE writeFileEntry(FormattedVolume* self, FAT16File fileEntry, cluster_ptr entryTable) {
-
-    updateSector(self, ,FAT16_ENTRY_SIZE);
-
-
-    return self->rawVolume->write(self->rawVolume, &fileEntry, adjustedAddress, FAT16_ENTRY_SIZE);
+    Entry entry = findFreeEntry(self, entryTable);
+    memcpy(entry.sector + entry.inSectorOffset, &fileEntry, sizeof(fileEntry));
+    return writeSector(self,entry.sectorPtr, entry.sector, self->info->bytesPerSector);
 }
 
 // tableStart => Cluster address of entry table
 // index => index in said table
 FAT16File readFileEntry(FormattedVolume* self, sector_ptr tableStart, uint32_t index){
     uint32_t sectorsOffset = index / self->info->bytesPerSector;
-    uint32_t bytesOffset = index % self->info->bytesPerSector;
+    uint32_t bytesOffset = (index % self->info->bytesPerSector) * FAT16_ENTRY_SIZE;
 
-    uint32_t adjustedAddress = tableStart * self->info->sectorsPerCluster + sectorsOffset;
-    void* chunk = readSector(self, adjustedAddress);
-    FAT16File* entry = (FAT16File*) malloc(sizeof(FAT16File));
-    memcpy(entry, chunk + bytesOffset, 2);
-    free(chunk);
-    return *entry;
-}
-
-FS_STATUS_CODE updateEntry(FormattedVolume* self, sector_ptr entryTable, FAT16File fat16File){
-    sector_ptr currentSector = entryTable;
-    void* sector = readSector(self,currentSector);
-
-    FAT16File* entry = malloc(sizeof(FAT16File));
-
-    uint32_t entriesRead = 0;
-    uint32_t maxEntries = calculateMaxEntries(self, entryTable);
-    uint32_t offset;
-    while(entriesRead < maxEntries){
-        for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
-            entry = memcpy(entry, sector + offset * FAT16_ENTRY_SIZE, 2);
-            entriesRead++;
-            if(strcmp(entry->name, fat16File.name) == 0){
-                break;
-            }
-        }
-        currentSector++;
-        sector = readSector(self,currentSector);
+    if(tableStart != self->info->rootSectionStart){
+        tableStart += self->info->rootSectionStart;
     }
-    return updateSector(self, currentSector, entry, 2, offset * FAT16_ENTRY_SIZE);
+    uint32_t adjustedAddress = tableStart + sectorsOffset;
+    void* chunk = readSector(self, adjustedAddress);
+    FAT16File entry = *(FAT16File*) (chunk + bytesOffset);
+    free(chunk);
+    return entry;
 }
 
 
 FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *name, bool lookingForDir) {
-    sector_ptr currentSector = entryTable;
-    void* sector = readSector(self,currentSector);
-
-    FAT16File* entry = malloc(sizeof(FAT16File));
-
-    uint32_t entriesRead = 0;
-    uint32_t maxEntries = calculateMaxEntries(self, entryTable);
-    uint32_t offset;
-    while(entriesRead < maxEntries){
-        for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
-            entry = memcpy(entry, sector + offset * FAT16_ENTRY_SIZE, 4);
-            entriesRead++;
-            if(strcmp(entry->name, name) == 0){
-                if(isDir(*entry) == lookingForDir){
-                    #ifdef DEBUG_FAT16
-                    printf("Deleting %s of size %u at sector %u pointing to sector %u\n",
-                           entry.name, entry.fileSize, entryTable, entry.FAT32fileClusterStart);
-                    #endif
-
-                    return FS_SUCCES;
-                } else{
-                    if(lookingForDir){
-                        return FS_SOUGHT_DIR_FOUND_FILE;
-                    } else{
-                        return FS_SOUGHT_FILE_FOUND_DIR;
-                    }
-                }
-            }
+    Entry entry = findEntry(self, entryTable, name);
+    if(entry.entry == NULL){
+        if(lookingForDir){
+            return FS_DIRECTORY_NOT_FOUND;
+        }else{
+            return FS_FILE_NOT_FOUND;
         }
-        currentSector++;
-        sector = readSector(self,currentSector);
     }
-    if(lookingForDir){
-        return FS_DIRECTORY_NOT_FOUND;
-    }else{
-        return FS_FILE_NOT_FOUND;
+    FAT16File* fileEntry = (FAT16File*) malloc(sizeof(FAT16File));
+    memcpy(fileEntry, entry.sector + entry.inSectorOffset, sizeof(FAT16File));
+
+    if(isDir(*fileEntry) == lookingForDir){
+        fileEntry->name[0] = 0xe5;
+        #ifdef DEBUG_FAT16
+        printf("Deleting %s of size %u at sector %u pointing to sector %u\n",
+                           entry.entry->name, entry.entry->fileSize, entryTable, entry.entry->fileClusterStart);
+        #endif
+        writeSector(self,entry.sectorPtr, entry.sector, self->info->bytesPerSector);
+        return FS_SUCCES;
+    } else{
+        if(lookingForDir){
+            return FS_SOUGHT_DIR_FOUND_FILE;
+        } else{
+            return FS_SOUGHT_FILE_FOUND_DIR;
+        }
     }
 }
-
-
 
 // nextSector => Cluster address of next entry
 FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, void *nextSector){
     uint32_t sectorOffset = index / self->info->bytesPerSector;
-    uint32_t offsetInSector = index % self->info->bytesPerSector;
+    uint32_t offsetInSector = (index % self->info->bytesPerSector) * 2; // Times 2 because each entry is 2 bytes
 
     FS_STATUS_CODE fat1 = updateSector(self, self->info->FAT1Start + sectorOffset, nextSector, 2, offsetInSector);
     FS_STATUS_CODE fat2 = updateSector(self, self->info->FAT2Start + sectorOffset, nextSector, 2, offsetInSector);
@@ -199,32 +188,28 @@ FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, void *nextSect
 
 uint16_t readFATS(FormattedVolume* self, uint16_t index){
     uint32_t sectorOffset = index / self->info->bytesPerSector;
-    uint32_t offsetInSector = index % self->info->bytesPerSector;
+    uint32_t offsetInSector = (index % self->info->bytesPerSector) * 2;
 
     Sector sectorFAT1 = readSector(self,self->info->FAT1Start + sectorOffset);
     Sector sectorFAT2 = readSector(self,self->info->FAT2Start + sectorOffset);
 
-    uint16_t* FAT1 = (uint16_t*) malloc(sizeof(uint16_t));
-    uint16_t* FAT2 = (uint16_t*) malloc(sizeof(uint16_t));
-    memcpy(FAT1, sectorFAT1 + offsetInSector, 2);
-    memcpy(FAT2, sectorFAT2 + offsetInSector, 2);
+    uint16_t FAT1 = *(uint16_t*) (sectorFAT1 + offsetInSector);
+    uint16_t FAT2 = *(uint16_t*) (sectorFAT2 + offsetInSector);
 
-    if(*FAT1 != *FAT2){
+    if(FAT1 != FAT2){
         printf("FATS are out of sync");
     }
-    uint16_t FATEntry = *FAT1;
-    free(FAT1);
-    free(FAT2);
-    return FATEntry;
+    return FAT1;
 }
 
 
 sector_ptr resolveFileTable(FormattedVolume *self, Path path) {
     sector_ptr entryTable = self->info->rootSectionStart;
+
     FAT16File entry;
     for(int i = 0; i < path.depth;i++){
         entry = findEntryInTable(self, entryTable, path.path[i]);
-        entryTable = entry.FAT32fileClusterStart;
+        entryTable = entry.fileClusterStart;
         if(entry.name[0] == 0){
             break;
         }
@@ -242,54 +227,68 @@ sector_ptr resolveFileTable(FormattedVolume *self, Path path) {
         }
         free(path.path[i]);
     }
-    return entryTable;
+    if(entryTable == self->info->rootSectionStart){
+        return entryTable;
+    }else{
+        return self->info->rootSectionStart + entryTable;
+    }
 }
 
 
 sector_ptr findFreeCluster(FormattedVolume* self){
+    sector_ptr currentSector = self->info->FAT1Start;
+    void* sector;
+
     uint16_t entry;
-    for (uint32_t i = 0; i < self->info->FATEntryCount; i++) {
-        entry = readFATS(self,i);
-        if(entry == 0x00){
-            return self->info->dataSectionStart + i;
+    sector_ptr freeSector = 0;
+    do{
+        sector = readSector(self,currentSector++);
+        for (int i = 0; i < self->info->bytesPerSector; i+=2) {
+            sector_ptr* ptr = (sector_ptr*) (sector + i);
+            entry = *ptr;
+            if(entry == 0x000){
+                break;
+            }
+            freeSector++;
         }
-    }
-    return 0;
+    } while (entry != 0x0000);
+
+    return freeSector;
 }
 
 FAT16File findEntryInTable(FormattedVolume *self, cluster_ptr entryTable, char *name) {
     sector_ptr currentSector = entryTable;
     void* sector = readSector(self,currentSector);
 
-    FAT16File* entry = malloc(sizeof(FAT16File));
+    FAT16File entry;
 
     uint32_t entriesRead = 0;
     uint32_t maxEntries = calculateMaxEntries(self, entryTable);
     uint32_t offset;
     while(entriesRead < maxEntries){
         for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
-            entry = memcpy(entry, sector + offset * FAT16_ENTRY_SIZE, 4);
+            entry = *(FAT16File*) (sector + offset * FAT16_ENTRY_SIZE);
             entriesRead++;
-            if(strcmp(entry->name, name) == 0){
+            if(entry.name[0] == 0x00){
+                entriesRead = -1; // Break out of while loop
+                break;
+            }
+            if(strcmp(entry.name, name) == 0){
                 // TODO support the actual FAT16 naming format and longer filenames
                 #ifdef DEBUG_FAT16
-                printf("Found %s of size %u in the FAT at sector %u pointing to sector %u\n",
-                       entry.name, entry.fileSize, entryTable, entry.FAT32fileClusterStart);
+                printf("Found %s of size %u in the FAT at sector %u pointing to data sector %u\n",
+                       entry.name, entry.fileSize, entryTable, entry.fileClusterStart);
                 #endif
-                FAT16File entryFile = *entry;
-                free(entry);
                 free(sector);
-                return entryFile;
+                return entry;
             }
         }
         currentSector++;
         sector = readSector(self,currentSector);
     }
     free(sector);
-    free(entry);
-    return (FAT16File){
-            .reserved = 1
-    };
+    entry.reserved = 1;
+    return entry;
 }
 
 uint32_t calculateMaxEntries(FormattedVolume* self, sector_ptr entryTable){

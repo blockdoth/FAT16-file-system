@@ -54,7 +54,10 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
 
     #ifdef DEBUG_FAT16
     printf("Formatting a rawVolume of size %u bytes\n", volume->volumeSize);
-    printBootSector(&bootSector);
+    printBootSector((BootSector*)readSectorSize(formattedVolume, 0, sizeof(bootSector)));
+
+
+    //printBootSector(&bootSector);
     printFATTable(formattedVolume);
     printFAT16Layout(formattedVolume);
     #endif
@@ -106,7 +109,7 @@ FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path path, FileMetadata* f
     writeFileEntry(self, fat16File, entryTable);
 
     #ifdef DEBUG_FAT16
-    printf("Wrote %s of size %u bytes from sector %u to sector %u\n",
+    printf("Wrote %s of size %u bytes from data sector %u to sector %u\n",
            fat16File.name, fat16File.fileSize, startCluster, currentCluster);
     //printFATTable(self);
     //printRootSectorShort(self);
@@ -139,7 +142,7 @@ FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fil
     sector_ptr subDirEntryCluster = findFreeCluster(self);
 
     uint16_t endSector = swapEndianness16Bit(0xFFFF);
-    writeFATS(self, subDirEntryCluster - self->info->dataSectionStart, &endSector);
+    writeFATS(self, subDirEntryCluster, &endSector);
 
     fat16File.fileClusterStart = subDirEntryCluster;
     writeFileEntry(self, fat16File, entryTable); //TODO support multi cluster DIRS

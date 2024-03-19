@@ -11,11 +11,11 @@ void printRootSectorShort(FormattedVolume* self){
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.name[0] == 0xe5){
-            printf("│ %u Deleted file\t\t%u - %u\t  │\n", i, entry.FAT32fileClusterStart, entry.fileClusterEnd);
+            printf("│ %u Deleted file\t\t%u - %u\t  │\n", i, entry.fileClusterStart, entry.fileClusterStart);
         } else if(entry.attributes == ATTR_DIRECTORY){
-            printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.FAT32fileClusterStart);
+            printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.fileClusterStart);
         } else{
-            printf("│ %u %s \t%u bytes\t%u - %u\t  │\n", i, entry.name, entry.fileSize, entry.FAT32fileClusterStart, entry.fileClusterEnd);
+            printf("│ %u %s \t%u bytes\tnext %u\t  │\n", i, entry.name, entry.fileSize, entry.fileClusterStart);
         }
     }
     printf("└─────────────────────────────────────────┘\n");
@@ -85,7 +85,7 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
         treeString = realloc(treeString, newTreeLength + 1);
         sprintf(treeString, "%s%s%s%s%s%s\n",treeString,prefix,pipe,colors[colorPointer],entry.name, RESET);
         if(entry.attributes == ATTR_DIRECTORY){
-            char* childTree = printTreeHelper(self, entry.FAT32fileClusterStart, childPrefix);
+            char* childTree = printTreeHelper(self, entry.fileClusterStart, childPrefix);
             uint32_t childTreeLength = (strlen(treeString) + strlen(childTree)) * sizeof(char*);
             treeString = (char*)realloc(treeString,childTreeLength);
             strcat(treeString, childTree);
@@ -108,7 +108,6 @@ void printTree(FormattedVolume* self){
     printf("─────────────────────────────────────────\n");
     printf("Directory structure\n");
     printf("─────────────────────────────────────────\n");
-    printf("%sRoot%s\n", colors[colorPointer], RESET);
     printf("%s",  printTreeToString(self));
     printf("─────────────────────────────────────────\n");
 
@@ -156,8 +155,7 @@ void printFAT16File(FAT16File *file) {
     printf("│ Time of Last Write:\t  %u\t\t  │\n", file->timeOfLastWrite);
     printf("│ Date of Last Write:\t  %u\t\t  │\n", file->dateOfLastWrite);
     printf("│ Last Accessed Date:\t  %u\t\t  │\n", file->lastAccessedDate);
-    printf("│ First Cluster Start:\t  %u\t\t  │\n", file->FAT32fileClusterStart);
-    printf("│ First Cluster End:\t  %u\t\t  │\n", file->fileClusterEnd);
+    printf("│ First Cluster Start:\t  %u\t\t  │\n", file->fileClusterStart);
     printf("└─────────────────────────────────────────┘\n");
 }
 

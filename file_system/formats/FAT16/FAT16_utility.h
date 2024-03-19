@@ -13,13 +13,14 @@ FS_STATUS_CODE updateSector(FormattedVolume *self, sector_ptr sector, void *data
 FS_STATUS_CODE writeDataSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
 
 void* readSector(FormattedVolume* self, sector_ptr sector);
+void* readSectorSize(FormattedVolume* self, sector_ptr sector, uint32_t size);
 void *readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector);
 FS_STATUS_CODE clearSectors(FormattedVolume* self, sector_ptr startSector, uint32_t count);
 
 FS_STATUS_CODE
 writeFileEntry(FormattedVolume *self, FAT16File fileEntry, cluster_ptr entryTable);
 FAT16File readFileEntry(FormattedVolume* self, sector_ptr tableStart, uint32_t index);
-FS_STATUS_CODE updateEntry(FormattedVolume* self, sector_ptr entryTable, FAT16File fat16File);
+//FS_STATUS_CODE updateEntry(FormattedVolume* self, sector_ptr entryTable, FAT16File fat16File);
 FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *name, bool lookingForDir);
 
 
