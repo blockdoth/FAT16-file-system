@@ -31,10 +31,10 @@ typedef struct FileIdentifier {
     char* identifier;
 }FileIdentifier;
 typedef struct FATVolumeInfo {
-    volume_ptr FAT1Start;
-    volume_ptr FAT2Start;
-    volume_ptr dataSectionStart;
-    volume_ptr rootSectionStart;
+    sector_ptr FAT1Start;
+    sector_ptr FAT2Start;
+    sector_ptr dataSectionStart;
+    sector_ptr rootSectionStart;
     uint32_t FATEntryCount;
     uint32_t FATTableSectorCount;
     uint32_t rootSectorCount;
@@ -52,15 +52,17 @@ typedef struct Path {
 
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
-    FATVolumeInfo* volumeInfo;
+    FATVolumeInfo* info;
     FS_STATUS_CODE (*createFile)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
     FS_STATUS_CODE (*createDir)(struct FormattedVolume* self, Path path, FileMetadata* fileMetadata);
     void* (*readFile)(struct FormattedVolume* self, Path path);
+    void* (*readFileSection)(struct FormattedVolume* self, Path path, uint32_t offset, uint32_t size);
     FS_STATUS_CODE (*checkFile)(struct FormattedVolume* self, Path path);
     FS_STATUS_CODE (*checkDir)(struct FormattedVolume* self, Path path);
     uint32_t (*updateFile)(struct FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
     FS_STATUS_CODE (*deleteDir)(struct FormattedVolume *self, Path path);
     FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path path);
+    char* (*toString)(struct FormattedVolume* self, Path path);
 } FormattedVolume;
 
 
@@ -81,12 +83,14 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume);
 FS_STATUS_CODE FAT16WriteFile(FormattedVolume* self, Path path, FileMetadata* fileMetadata, void* fileData);
 FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fileMetadata);
 void* FAT16ReadFile(FormattedVolume* self, Path path);
+void* FAT16ReadFileSection(FormattedVolume* self, Path path, uint32_t offset, uint32_t chunkSize);
 FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path path);
 FS_STATUS_CODE FAT16CheckDir(FormattedVolume* self, Path path);
 uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint32_t dataSize);
 
 FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path path);
 FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path path);
+char* FAT16ToTreeString(FormattedVolume* self, Path path);
 
 // Supported operations
 

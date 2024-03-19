@@ -6,16 +6,16 @@ void printRootSectorShort(FormattedVolume* self){
     printf("├─────────────────────────────────────────┤\n");
 
     FAT16File entry;
-    for(uint32_t i = 0; i < self->volumeInfo->rootSectorCount; i++){
-        entry = readFileEntry(self, self->volumeInfo->rootSectionStart, i);
+    for(uint32_t i = 0; i < self->info->rootSectorCount; i++){
+        entry = readFileEntry(self, self->info->rootSectionStart, i);
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.name[0] == 0xe5){
-            printf("│ %u Deleted file\t\t%u - %u\t  │\n",i, entry.fileClusterStart, entry.fileClusterEnd);
+            printf("│ %u Deleted file\t\t%u - %u\t  │\n", i, entry.FAT32fileClusterStart, entry.fileClusterEnd);
         } else if(entry.attributes == ATTR_DIRECTORY){
-            printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.fileClusterStart);
+            printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.FAT32fileClusterStart);
         } else{
-            printf("│ %u %s \t%u bytes\t%u - %u\t  │\n",i,entry.name, entry.fileSize, entry.fileClusterStart, entry.fileClusterEnd);
+            printf("│ %u %s \t%u bytes\t%u - %u\t  │\n", i, entry.name, entry.fileSize, entry.FAT32fileClusterStart, entry.fileClusterEnd);
         }
     }
     printf("└─────────────────────────────────────────┘\n");
@@ -37,19 +37,23 @@ size_t colorPointer = 1;
 
 
 
-
-void printTreeHelper(FormattedVolume* self, volume_ptr tableStart, char* prefix){
+char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix){
 
     char* color = colors[colorPointer];
-
+    size_t ansiLength = strlen(color) + strlen(RESET);
+    char* treeString = (char*) malloc(strlen(prefix) * sizeof(char*));
+    treeString[0] = '\0';
     FAT16File entry;
     FAT16File nextEntry;
-    bool lastEntry;
-    for(uint32_t i = 0; i < self->volumeInfo->bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
+
+    for(uint32_t i = 0; i < self->info->bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
         entry = readFileEntry(self, tableStart, i);
         nextEntry = readFileEntry(self, tableStart, i + 1);
         bool deletedEntry = false;
         bool lastEntry = false;
+        if(entry.name[0] == 0x00){
+            break;
+        }
         if(entry.name[0] == 0xe5){
             continue;
         }
@@ -60,17 +64,14 @@ void printTreeHelper(FormattedVolume* self, volume_ptr tableStart, char* prefix)
             lastEntry = true;
         }
 
-        if(entry.name[0] == 0x00){
-            break;
-        }
         char* pipe = (char*) malloc(20 * sizeof(char *));
         char* pipePrefix = (char*) malloc(20 * sizeof(char *));
         if(lastEntry || deletedEntry){
-            sprintf(pipe,         "%s └─ %s", color,  RESET);
-            sprintf(pipePrefix, "%s   %s", color, RESET);
+            sprintf(pipe,       "%s └─ %s", color,  RESET);
+            sprintf(pipePrefix, "%s    %s", color, RESET);
         }else{
-            sprintf(pipe,         "%s ├─ %s", color, RESET);
-            sprintf(pipePrefix,   "%s │ %s", color, RESET);
+            sprintf(pipe,       "%s ├─ %s", color, RESET);
+            sprintf(pipePrefix, "%s │ %s", color, RESET);
         }
 
         char* childPrefix = (char*)malloc( strlen(prefix) + strlen(pipePrefix) + 1); // Make a copy for concat's
@@ -80,21 +81,35 @@ void printTreeHelper(FormattedVolume* self, volume_ptr tableStart, char* prefix)
             colorPointer = 0;
         }
 
+        uint32_t newTreeLength = (strlen(treeString) + strlen(prefix) + strlen(pipe) + strlen(entry.name) + ansiLength) * sizeof(char*);
+        treeString = realloc(treeString, newTreeLength + 1);
+        sprintf(treeString, "%s%s%s%s%s%s\n",treeString,prefix,pipe,colors[colorPointer],entry.name, RESET);
         if(entry.attributes == ATTR_DIRECTORY){
-            printf("%s%s%s%s%s\n",prefix,pipe,colors[colorPointer],entry.name, RESET);
-            printTreeHelper(self, entry.fileClusterStart, childPrefix);
-        }else{
-            printf("%s%s%s%s%s\n",prefix,pipe,colors[colorPointer],entry.name, RESET);
+            char* childTree = printTreeHelper(self, entry.FAT32fileClusterStart, childPrefix);
+            uint32_t childTreeLength = (strlen(treeString) + strlen(childTree)) * sizeof(char*);
+            treeString = (char*)realloc(treeString,childTreeLength);
+            strcat(treeString, childTree);
         }
         free(childPrefix);
     }
+    return treeString;
 }
+
+char* printTreeToString(FormattedVolume* self){
+    char* color = colors[colorPointer];
+    size_t ansiLength = strlen(color) + strlen(RESET);
+    char* tree = printTreeHelper(self, self->info->rootSectionStart, "");
+    char* root = (char*) malloc( (ansiLength + strlen(tree) + 7) * sizeof (char*));
+    sprintf(root,"%sRoot%s\n%s", color,  RESET, tree);
+    return root;
+}
+
 void printTree(FormattedVolume* self){
     printf("─────────────────────────────────────────\n");
     printf("Directory structure\n");
     printf("─────────────────────────────────────────\n");
     printf("%sRoot%s\n", colors[colorPointer], RESET);
-    printTreeHelper(self, self->volumeInfo->rootSectionStart, "");
+    printf("%s",  printTreeToString(self));
     printf("─────────────────────────────────────────\n");
 
 }
@@ -141,13 +156,13 @@ void printFAT16File(FAT16File *file) {
     printf("│ Time of Last Write:\t  %u\t\t  │\n", file->timeOfLastWrite);
     printf("│ Date of Last Write:\t  %u\t\t  │\n", file->dateOfLastWrite);
     printf("│ Last Accessed Date:\t  %u\t\t  │\n", file->lastAccessedDate);
-    printf("│ First Cluster Start:\t  %u\t\t  │\n", file->fileClusterStart);
+    printf("│ First Cluster Start:\t  %u\t\t  │\n", file->FAT32fileClusterStart);
     printf("│ First Cluster End:\t  %u\t\t  │\n", file->fileClusterEnd);
     printf("└─────────────────────────────────────────┘\n");
 }
 
 void printFAT16Layout(FormattedVolume *file) {
-    FATVolumeInfo* volumeInfo = file->volumeInfo;
+    FATVolumeInfo* volumeInfo = file->info;
     printf("┌─────────────────────────────────────────┐\n");
     printf("│ FAT 16 layout                           │\n");
     printf("├─────────────────────────────────────────┤\n");
@@ -198,9 +213,9 @@ void printFATTable(FormattedVolume* self){
         i++;
     }
     printf("│ ⋮         ⋮             │\n");
-    printf("│ %u  Total Entries    │\n", self->volumeInfo->FATEntryCount);
+    printf("│ %u  Total Entries    │\n", self->info->FATEntryCount);
     printf("├─────────────────────────┤\n");
-    printf("│ FAT Addressed: %luMB   │\n", self->volumeInfo->totalAddressableSize / 1048576);
+    printf("│ FAT Addressed: %luMB   │\n", self->info->totalAddressableSize / 1048576);
     printf("└─────────────────────────┘\n");
 
 }

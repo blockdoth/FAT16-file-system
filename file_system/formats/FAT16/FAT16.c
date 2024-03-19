@@ -7,8 +7,9 @@
 FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInfo) {
     FormattedVolume* formattedVolume = (FormattedVolume*)malloc(sizeof(FormattedVolume));
     formattedVolume->rawVolume = volume;
-    formattedVolume->volumeInfo = volumeInfo;
+    formattedVolume->info = volumeInfo;
     formattedVolume->readFile = FAT16ReadFile;
+    formattedVolume->readFileSection = FAT16ReadFileSection;
     formattedVolume->createFile = FAT16WriteFile;
     formattedVolume->createDir = FAT16WriteDir;
     formattedVolume->checkDir = FAT16CheckDir;
@@ -16,6 +17,8 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInf
     formattedVolume->updateFile = FAT16UpdateFile;
     formattedVolume->deleteDir = FAT16DeleteDir;
     formattedVolume->deleteFile = FAT16DeleteFile;
+    formattedVolume->toString = FAT16ToTreeString;
+        ;
     return formattedVolume;
 }
 
@@ -30,13 +33,13 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
     FormattedVolume* formattedVolume = initFormattedVolume(volume, volumeInfo);
 
     // Write the bootsector to the rawVolume
-    volume->write(volume, &bootSector,0, sizeof(bootSector));
-
+    writeSector(formattedVolume, 0, &bootSector, 90);
 
     //Zero out FAT tables (both of them)
-    volume->write(volume, NULL, volumeInfo->FAT1Start * volumeInfo->bytesPerCluster, 2 * volumeInfo->FATEntryCount);
+    clearSectors(formattedVolume,volumeInfo->FAT1Start, volumeInfo->FATTableSectorCount);
+    clearSectors(formattedVolume,volumeInfo->FAT2Start, volumeInfo->FATTableSectorCount);
     //Zero out root directory
-    volume->write(volume, NULL, volumeInfo->rootSectionStart * volumeInfo->bytesPerCluster, volumeInfo->rootSectorCount);
+    clearSectors(formattedVolume, volumeInfo->rootSectionStart, volumeInfo->rootSectorCount);
 
     uint16_t firstSectors[] = {
             swapEndianness16Bit(0xFFF8),
@@ -45,12 +48,13 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
     // Set the first cluster to 0xFFF8, indicating the first cluster of a rickRoll
     // Set the second cluster to 0xFFFF, indicating the end of a cluster chain
     // IMPORTANT! Must be converted to little endian
-    volume->write(volume, &firstSectors, volumeInfo->FAT1Start * volumeInfo->bytesPerCluster, 4);
-    volume->write(volume, &firstSectors, volumeInfo->FAT2Start * volumeInfo->bytesPerCluster, 4);
+
+    writeSector(formattedVolume,volumeInfo->FAT1Start, firstSectors, 4);
+    writeSector(formattedVolume,volumeInfo->FAT2Start, firstSectors, 4);
 
     #ifdef DEBUG_FAT16
     printf("Formatting a rawVolume of size %u bytes\n", volume->volumeSize);
-    printBootSector(formattedVolume);
+    printBootSector(&bootSector);
     printFATTable(formattedVolume);
     printFAT16Layout(formattedVolume);
     #endif
@@ -59,52 +63,47 @@ FormattedVolume* formatFAT16Volume(RawVolume *volume) {
 
 
 
-
 FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path path, FileMetadata* fileMetadata, void* fileData){
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     if(checkNamingCollusion(self, entryTable, fileMetadata->name, false) == true){
         return FS_FILE_ALREADY_EXISTS;
     }
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata); // Consumes fileMetadata
-    volume_ptr startCluster = findFreeCluster(self);
-    if(startCluster == 0){
-        return FS_OUT_OF_SPACE;
-    }
-
-    volume_ptr currentCluster = startCluster;
-    volume_ptr prevSector;
-    volume_ptr currentDataPointer = 0;
+    sector_ptr startCluster = findFreeCluster(self);
+    sector_ptr currentCluster;
+    sector_ptr prevCluster = startCluster;
+    uint32_t currentDataPointer = 0;
+    uint32_t bytesInSector = self->info->bytesPerSector;
     uint32_t bytesLeftToWrite = fat16File.fileSize;
-    while (bytesLeftToWrite > self->volumeInfo->bytesPerCluster){
+    while (bytesLeftToWrite > bytesInSector){
         // Write the data
-        writeSector(self,
-                    currentCluster,
-                    fileData + currentDataPointer,
-                    self->volumeInfo->bytesPerCluster);
-        prevSector = currentCluster;
 
-        // Write the address of the next sector to the FATS
-        writeFATS(self,prevSector, &currentCluster);
+        uint8_t sectorInCluster = 0;
         currentCluster = findFreeCluster(self);
-
-        currentDataPointer += self->volumeInfo->bytesPerCluster;
-        bytesLeftToWrite -= self->volumeInfo->bytesPerCluster;
+        while(bytesLeftToWrite > bytesInSector && sectorInCluster < self->info->sectorsPerCluster){
+            writeDataSector(self, currentCluster * self->info->sectorsPerCluster,
+                            fileData + currentDataPointer, bytesInSector);
+            bytesLeftToWrite -= bytesInSector;
+            currentDataPointer += bytesInSector;
+            sectorInCluster++;
+        }
+        writeFATS(self,prevCluster, &currentCluster);
+        prevCluster = currentCluster;
+        currentCluster++;
     }
     if(bytesLeftToWrite > 0){
-        writeSector(self,
-                    currentCluster,
-                    fileData + currentDataPointer,
-                    bytesLeftToWrite
-        );
+        currentCluster = findFreeCluster(self);
+        writeDataSector(self, currentCluster * self->info->sectorsPerCluster,
+                        fileData + currentDataPointer, bytesInSector);
+        bytesLeftToWrite;
+        writeFATS(self,prevCluster, &currentCluster);
     }
-    // End cluster of sector in FATS
-    uint16_t endSector = swapEndianness16Bit(0xFFFF);
-    writeFATS(self, currentCluster, &endSector);
+    uint16_t endOfFile = swapEndianness16Bit(0xFFF8);
+    writeFATS(self,currentCluster, &endOfFile);
 
-    // Write to the metadata to the root directory
-    fat16File.fileClusterEnd = startCluster;
-    fat16File.fileClusterEnd = currentCluster;
-    writeFileEntry(self, fat16File, entryTable, startCluster, currentCluster);
+    // Write to the metadata to the right table
+    fat16File.fileClusterStart = startCluster;
+    writeFileEntry(self, fat16File, entryTable);
 
     #ifdef DEBUG_FAT16
     printf("Wrote %s of size %u bytes from sector %u to sector %u\n",
@@ -118,83 +117,32 @@ FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path path, FileMetadata* f
 }
 
 uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint32_t dataSize){
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     if(checkNamingCollusion(self, entryTable, name, false) == false){
         return -1;
     }
     FAT16File fat16File = findEntryInTable(self, entryTable, name);
 
-    uint32_t clusterCount = fat16File.fileClusterEnd - fat16File.fileClusterStart;
-    uint32_t offset = fat16File.fileSize;
-    if(clusterCount > 0){
-        offset -= (clusterCount - 1) * self->volumeInfo->bytesPerCluster;
-    }
+    //TODO implement
 
-    //volume_ptr startPtr = (allocatedBytes - fat16File.fileSize ) % self->volumeInfo->bytesPerCluster;
-    volume_ptr currentCluster = fat16File.fileClusterEnd;
-    uint32_t bytesLeftInCluster = self->volumeInfo->bytesPerCluster - offset;
-    uint32_t bytesLeftToWrite = dataSize;
-    uint32_t writeSize = 0;
-    if(offset > 0){
-        if(dataSize >= bytesLeftInCluster){
-            writeSize = bytesLeftInCluster;
-        }else{
-            writeSize = dataSize;
-        }
-        writePartialSector(self,
-                           currentCluster,
-                           offset,
-                           fileData,
-                           writeSize
-        );
-        bytesLeftToWrite -= writeSize;
-        fat16File.fileSize += writeSize;
-    }
-
-    volume_ptr currentDataPointer = writeSize;
-    volume_ptr prevSector;
-    while (bytesLeftToWrite > self->volumeInfo->bytesPerCluster){
-        // Write the data
-        writeSector(self,
-                    currentCluster,
-                    fileData + currentDataPointer,
-                    self->volumeInfo->bytesPerCluster);
-        prevSector = currentCluster;
-
-        // Write the address of the next sector to the FATS
-        writeFATS(self,prevSector, &currentCluster);
-        currentCluster = findFreeCluster(self);
-
-        currentDataPointer += self->volumeInfo->bytesPerCluster;
-        bytesLeftToWrite -= self->volumeInfo->bytesPerCluster;
-    }
-    if(bytesLeftToWrite > 0){
-        writeSector(self,
-                        currentCluster,
-                           fileData + currentDataPointer,
-                           bytesLeftToWrite
-        );
-    }
-    fat16File.fileClusterEnd = currentCluster;
-    updateEntry(self, entryTable, fat16File);
-    destroyPath(path);
     return fat16File.fileSize;
 }
 
 FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fileMetadata){
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     if(checkNamingCollusion(self, entryTable, fileMetadata->name, true) == true){
         return FS_DIRECTORY_ALREADY_EXISTS;
     }
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata); // Consumes fileMetadata
 
-    volume_ptr subDirEntryCluster = findFreeCluster(self);
+    sector_ptr subDirEntryCluster = findFreeCluster(self);
 
     uint16_t endSector = swapEndianness16Bit(0xFFFF);
-    writeFATS(self, subDirEntryCluster - self->volumeInfo->dataSectionStart, &endSector);
+    writeFATS(self, subDirEntryCluster - self->info->dataSectionStart, &endSector);
 
-    writeFileEntry(self, fat16File, entryTable, subDirEntryCluster, subDirEntryCluster); //TODO support multi cluster DIRS
+    fat16File.fileClusterStart = subDirEntryCluster;
+    writeFileEntry(self, fat16File, entryTable); //TODO support multi cluster DIRS
 
     #ifdef DEBUG_FAT16
     printf("Created a directory %s at sector %u\n", fat16File.name, entryTable);
@@ -209,47 +157,100 @@ FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path path, FileMetadata* fil
 
 
 void* FAT16ReadFile(FormattedVolume* self, Path path) {
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     if(checkNamingCollusion(self, entryTable, name, false) == FS_FILE_NOT_FOUND){
         return NULL;
     }
     FAT16File fat16File = findEntryInTable(self, entryTable, name);
-    char* readFile = malloc(fat16File.fileSize);
-    void* startOfFile = readFile;
+    char* file = malloc(fat16File.fileSize);
+    uint32_t dataPointer = 0;
+    uint32_t bytesInSector = self->info->bytesPerSector;
 
-    for (uint16_t i = fat16File.fileClusterStart; i <= fat16File.fileClusterEnd; i++) {
-        // Prevent overwritten the malloc'ed region
-        uint32_t chunkLength;
-        if(fat16File.fileSize < self->volumeInfo->bytesPerCluster){
-            chunkLength = fat16File.fileSize;
-        }else{
-            chunkLength = self->volumeInfo->bytesPerCluster;
+    uint16_t currentFATEntry = fat16File.fileClusterStart;
+    uint32_t bytesLeftToRead = fat16File.fileSize;
+    do{
+        uint8_t sectorIndex = 0;
+        while(bytesLeftToRead > 0 && sectorIndex < self->info->sectorsPerCluster){
+            uint32_t readChunkSize = bytesInSector;
+            if(bytesLeftToRead < self->info->bytesPerSector){
+                readChunkSize = bytesLeftToRead;
+            }
+            void* chunk = readClusterSector(self, currentFATEntry, sectorIndex); //TODO directly write from volume
+            memcpy(file + dataPointer, chunk, bytesInSector);
+            free(chunk);
+            dataPointer += bytesInSector;
+            bytesLeftToRead -= bytesInSector;
         }
-        void* chunk = readSector(self, i, chunkLength);
-        memcpy(readFile, chunk , chunkLength);
-        free(chunk);
-        readFile += self->volumeInfo->bytesPerCluster;
-    }
+        currentFATEntry = readFATS(self, currentFATEntry);
+    } while(currentFATEntry != swapEndianness16Bit(0xFFF8));
     destroyPath(path);
-    return startOfFile;
+    return file;
 }
 
+void* FAT16ReadFileSection(FormattedVolume* self, Path path, uint32_t offset, uint32_t chunkSize){
+    sector_ptr entryTable = resolveFileTable(self, path);
+    char* name = path.path[path.depth];
+    if(checkNamingCollusion(self, entryTable, name, false) == FS_FILE_NOT_FOUND){
+        return NULL;
+    }
+    FAT16File fat16File = findEntryInTable(self, entryTable, name);
+    char* fileChunk = malloc(chunkSize);
+    uint32_t dataPointer = 0;
+    uint32_t bytesInSector = self->info->bytesPerSector;
+
+    uint16_t currentFATEntry = fat16File.fileClusterStart;
+    uint16_t prevFATEntry;
+    uint32_t bytesLeftToRead = chunkSize;
+    uint32_t totalSectorCount = 0;
+    uint32_t sectorsOffset = offset / self->info->bytesPerSector;
+    uint32_t bytesOffset = offset % self->info->bytesPerSector;
+    uint8_t sectorIndex;
+    do{
+        sectorIndex = 0;
+        while(bytesLeftToRead > 0 && sectorIndex < self->info->sectorsPerCluster){
+            totalSectorCount++;
+            if(totalSectorCount > sectorsOffset){
+                uint32_t readChunkSize = bytesInSector;
+                if(bytesLeftToRead < self->info->bytesPerSector){
+                    readChunkSize = bytesLeftToRead;
+                }
+                void* chunk = readClusterSector(self, currentFATEntry, sectorIndex); //TODO directly write from volume
+                memcpy(fileChunk + dataPointer, chunk + bytesOffset, readChunkSize);
+                free(chunk);
+                sectorIndex++;
+                dataPointer += bytesInSector;
+                bytesLeftToRead -= bytesInSector;
+            }
+        }
+        prevFATEntry = currentFATEntry;
+        currentFATEntry = readFATS(self, currentFATEntry);
+    } while(currentFATEntry != swapEndianness16Bit(0xFFF8));
+
+    if(bytesOffset > 0){
+        void* chunk = readClusterSector(self, prevFATEntry, sectorIndex); //TODO directly write from volume
+        memcpy(fileChunk + dataPointer, chunk + bytesOffset, bytesOffset);
+    }
+    destroyPath(path);
+    return fileChunk;
+}
+
+
 FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path path){
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     destroyPath(path);
     return checkNamingCollusion(self, entryTable, name, false);
 }
 FS_STATUS_CODE FAT16CheckDir(FormattedVolume* self, Path path){
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     destroyPath(path);
     return checkNamingCollusion(self, entryTable, name, true);
 }
 
 FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path path){
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     destroyPath(path);
 
@@ -261,7 +262,7 @@ FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path path){
     return statusCode;
 }
 FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path path) {
-    volume_ptr entryTable = resolveFileTable(self, path);
+    sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     destroyPath(path);
     FS_STATUS_CODE statusCode = deleteEntry(self, entryTable, name, true);
@@ -272,3 +273,6 @@ FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path path) {
     return statusCode;
 }
 
+char* FAT16ToTreeString(FormattedVolume* self, Path path){
+    return printTreeToString(self);
+}

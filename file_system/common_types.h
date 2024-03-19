@@ -3,7 +3,10 @@
 
 #include "stdint.h"
 #include "stdbool.h"
-typedef uint32_t volume_ptr;
+typedef uint16_t sector_ptr;
+typedef uint16_t cluster_ptr;
+typedef void* Sector;
+
 // TODO make merge this with another header without cyclic dependencies
 typedef enum FS_STATUS_CODE {
     FS_SUCCES = true,

@@ -23,5 +23,6 @@ void printFAT16File(FAT16File *file);
 void printRootSectorShort(FormattedVolume* self);
 void printFAT16Layout(FormattedVolume *self);
 void printTree(FormattedVolume* self);
+char* printTreeToString(FormattedVolume* self);
 
 #endif //FILE_SYSTEM_FAT16_DEBUG_H

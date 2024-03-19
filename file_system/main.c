@@ -50,9 +50,10 @@ int main() {
     if(!fs_dir_exists(dir)){
         printf("Dir %s has been deleted\n", dir);
     }else{
-        printf("File %s stil exists\n", dir);
+        printf("File %s still exists\n", dir);
     }
-
+    char* tree = fs_get_string("#");
+    printf("%s",tree);
 
 //    uint32_t newSize = fs_update_file("#fileD.txt", rickRoll, rickLen);
 //    char* string = (char *) fs_read_file("#fileD");

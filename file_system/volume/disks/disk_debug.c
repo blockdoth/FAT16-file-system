@@ -22,7 +22,7 @@ void destroyDebugLog(uint32_t volumeSize) {
 #endif
 }
 
-void readDebugLog(volume_ptr sourceAddress, uint32_t dataSize, void *dataAddress) {
+void readDebugLog(sector_ptr sourceAddress, uint32_t dataSize, void *dataAddress) {
 #ifdef DEBUG_VOLUME
     char buffer[DEBUG_BUFFER_SIZE];
     allowtruncate(buffer, dataAddress, dataSize);
@@ -30,7 +30,7 @@ void readDebugLog(volume_ptr sourceAddress, uint32_t dataSize, void *dataAddress
 #endif
 }
 
-void writeDebugLog(void* sourceAddress, volume_ptr destinationAddress, uint32_t dataSize) {
+void writeDebugLog(void* sourceAddress, sector_ptr destinationAddress, uint32_t dataSize) {
 #ifdef DEBUG_VOLUME
     char buffer[DEBUG_BUFFER_SIZE];
     allowtruncate(buffer, sourceAddress, dataSize);
@@ -38,7 +38,7 @@ void writeDebugLog(void* sourceAddress, volume_ptr destinationAddress, uint32_t 
 #endif
 }
 
-void clearDebugLog(volume_ptr destinationAddress, uint32_t dataSize) {
+void clearDebugLog(sector_ptr destinationAddress, uint32_t dataSize) {
 #ifdef DEBUG_VOLUME
     printf("Clearing memory from address %u to %u\n", destinationAddress, destinationAddress + dataSize);
 #endif

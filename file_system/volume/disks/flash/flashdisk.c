@@ -9,14 +9,14 @@ void flashdisk_destroy(RawVolume* self){
     // TODO implement
 }
 
-FS_STATUS_CODE flashdisk_write(RawVolume* self, void* sourceAddress, volume_ptr destinationAddress, uint32_t size){
+FS_STATUS_CODE flashdisk_write(RawVolume* self, void* sourceAddress, sector_ptr destinationAddress, uint32_t size){
     if(bounds_check(self, destinationAddress, size)){
         return false;
     }
     // TODO implement
     return false;
 }
-void* flashdisk_read(RawVolume* self, volume_ptr sourceAddress, uint32_t size){
+void* flashdisk_read(RawVolume* self, sector_ptr sourceAddress, uint32_t size){
     if(bounds_check(self, sourceAddress, size)){
         return NULL;
     }

@@ -9,7 +9,7 @@
 #include <malloc.h>
 #include <string.h>
 
-#define DEBUG_FAT16
+//#define DEBUG_FAT16
 
 #define FAT16_MINIMUM_SIZE 1024
 #define FAT16_ENTRY_SIZE 32
@@ -46,10 +46,10 @@ typedef struct FAT16File {
     uint16_t creationTime;
     uint16_t creationDate;
     uint16_t lastAccessedDate;
-    uint16_t fileClusterStart;
+    uint16_t FAT32fileClusterStart;
     uint16_t timeOfLastWrite;
     uint16_t dateOfLastWrite;
-    uint16_t fileClusterEnd;
+    uint16_t fileClusterStart;
     uint32_t fileSize;
 } FAT16File; // Total volumeSize: 32 bytes
 

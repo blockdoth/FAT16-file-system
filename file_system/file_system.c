@@ -15,7 +15,7 @@ FS_STATUS_CODE fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
 
 void fs_destroy() {
     formatted_volume->rawVolume->destroy(formatted_volume->rawVolume);
-    free(formatted_volume->volumeInfo);
+    free(formatted_volume->info);
     free(formatted_volume);
 }
 
@@ -46,6 +46,14 @@ void* fs_read_file(char* path){
     }
     Path resolvedPath = parsePath(path);
     return formatted_volume->readFile(formatted_volume, resolvedPath);
+}
+
+void* fs_read_file_section(char* path, uint32_t offset, uint32_t size){
+    if(!checkValidPath(path)){
+        return NULL;
+    }
+    Path resolvedPath = parsePath(path);
+    return formatted_volume->readFileSection(formatted_volume, resolvedPath, offset, size);
 }
 
 FS_STATUS_CODE fs_file_exists(char* path){
@@ -116,6 +124,11 @@ FS_STATUS_CODE checkValidPath(char* path){
         return FS_INVALID_PATH;
     }
     return FS_SUCCES;
+}
+
+char* fs_get_string(char* path){
+    Path resolvedPath = parsePath(path);
+    return formatted_volume->toString(formatted_volume,resolvedPath);
 }
 
 Path parsePath(char* path){
