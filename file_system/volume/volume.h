@@ -19,8 +19,8 @@ typedef struct RawVolume {
     uint32_t volumeSize;
     FS_STATUS_CODE (*init)(struct RawVolume* self, uint32_t volumeSize);
     void (*destroy)(struct RawVolume* self);
-    FS_STATUS_CODE (*write)(struct RawVolume* self, void* sourceAddress, sector_ptr destinationAddress, uint32_t dataSize);
-    void* (*read)(struct RawVolume* self, sector_ptr src_addr, uint32_t dataSize);
+    FS_STATUS_CODE (*write)(struct RawVolume* self, void* sourceAddress, uint32_t destinationAddress, uint32_t dataSize);
+    void* (*read)(struct RawVolume* self, uint32_t src_addr, uint32_t dataSize);
 } RawVolume;
 
 // Initialize the actual rawVolume

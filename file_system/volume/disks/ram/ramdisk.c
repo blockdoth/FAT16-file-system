@@ -17,7 +17,7 @@ void ramdisk_destroy(RawVolume* self){
     free(self);
 }
 
-FS_STATUS_CODE ramdisk_write(RawVolume* self, void* sourceAddress, sector_ptr destinationAddress, uint32_t size){
+FS_STATUS_CODE ramdisk_write(RawVolume* self, void* sourceAddress, uint32_t destinationAddress, uint32_t size){
     if(bounds_check(self, destinationAddress, size)){
         return FS_OUT_OF_BOUNDS;
     }
@@ -31,7 +31,7 @@ FS_STATUS_CODE ramdisk_write(RawVolume* self, void* sourceAddress, sector_ptr de
     }
     return FS_SUCCES;
 }
-void* ramdisk_read(RawVolume* self, sector_ptr sourceAddress, uint32_t size){
+void* ramdisk_read(RawVolume* self, uint32_t sourceAddress, uint32_t size){
     if(bounds_check(self, sourceAddress, size)){
         return NULL;
     }

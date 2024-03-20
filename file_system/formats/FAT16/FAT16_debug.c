@@ -11,11 +11,11 @@ void printRootSectorShort(FormattedVolume* self){
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.name[0] == 0xe5){
-            printf("│ %u Deleted file\t\t%u - %u\t  │\n", i, entry.fileClusterStart, entry.fileClusterStart);
+            printf("│ %u Deleted file\t\t%u\t  │\n", i, entry.fileClusterStart);
         } else if(entry.attributes == ATTR_DIRECTORY){
             printf("│ %u %s \tDirectory\t%u\t  │\n",i,entry.name, entry.fileClusterStart);
         } else{
-            printf("│ %u %s \t%u bytes\tnext %u\t  │\n", i, entry.name, entry.fileSize, entry.fileClusterStart);
+            printf("│ %u %s \t%u bytes\t%u+\t  │\n", i, entry.name, entry.fileSize, entry.fileClusterStart);
         }
     }
     printf("└─────────────────────────────────────────┘\n");
@@ -49,7 +49,7 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
     for(uint32_t i = 0; i < self->info->bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
         entry = readFileEntry(self, tableStart, i);
         nextEntry = readFileEntry(self, tableStart, i + 1);
-        bool deletedEntry = false;
+        bool nextEntryIsDeleted = false;
         bool lastEntry = false;
         if(entry.name[0] == 0x00){
             break;
@@ -58,7 +58,7 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
             continue;
         }
         if(nextEntry.name[0] == 0xe5){
-            deletedEntry = true;
+            nextEntryIsDeleted = true;
         }
         if(nextEntry.name[0] == 0x00){
             lastEntry = true;
@@ -66,7 +66,7 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
 
         char* pipe = (char*) malloc(20 * sizeof(char *));
         char* pipePrefix = (char*) malloc(20 * sizeof(char *));
-        if(lastEntry || deletedEntry){
+        if(lastEntry || nextEntryIsDeleted){
             sprintf(pipe,       "%s └─ %s", color,  RESET);
             sprintf(pipePrefix, "%s    %s", color, RESET);
         }else{
@@ -196,6 +196,9 @@ void printFATTable(FormattedVolume* self){
                 break;
             case 0xFFF8:
                 printf("│ %u \t Start of Cluster │\n", i);
+                break;
+            case 0xFFFE:
+                printf("│ %u \t Deleted Cluster  │\n", i);
                 break;
             case 0xFFFF:
                 printf("│ %u \t End of Cluster\t  │\n", i);

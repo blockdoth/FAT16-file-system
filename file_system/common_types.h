@@ -25,6 +25,7 @@ typedef enum FS_STATUS_CODE {
     FS_OPERATION_NOT_SUPPORTED_ON_FILE = false,
     FS_SOUGHT_FILE_FOUND_DIR = false,
     FS_SOUGHT_DIR_FOUND_FILE = false,
+    FS_DELETION_FAILED = false,
 } FS_STATUS_CODE;
 
 

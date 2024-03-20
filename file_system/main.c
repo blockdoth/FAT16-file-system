@@ -23,42 +23,43 @@ int main() {
     fs_create_dir( "#rootDirA|subDirA|subDirB");
     fs_create_dir( "#rootDirA|subDirC");
     fs_create_dir( "#rootDirD");
-//
-    fs_create_file("#rootDirA|subDirA|fileA.txt", rickRoll, rickLen);
-//    fs_create_file("#rootDirA|subDirA|subDirB|fileB.txt", rickRoll, rickLen);
-//    fs_create_file("#rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
-//    fs_create_file("#rootDirD|fileC.txt", rickRoll, rickLen);
-//    fs_create_file("#fileD", helloWorld, 11);
-//    fs_create_file("#fileE", helloWorld, 11);
-//
-//    char* dirPath = "#rootDirA|subDirA|subDirB";
-//    if(fs_dir_exists(dirPath)){
-//        printf("Found dir at %s\n", dirPath);
-//    }
-//    char* filePath = "#fileE";
-//    if(fs_file_exists(filePath)){
-//        printf("Found rickRoll at %s\n", filePath);
-//    }
-//    fs_delete_file(filePath);
-//    if(!fs_file_exists(filePath)){
-//        printf("File %s has been deleted\n", filePath);
-//    }else{
-//        printf("File %s stil exists\n", filePath);
-//    }
-//    char* dir = "#rootDirA|subDirA";
-//    fs_delete_dir(dir, true);
-//    if(!fs_dir_exists(dir)){
-//        printf("Dir %s has been deleted\n", dir);
-//    }else{
-//        printf("File %s still exists\n", dir);
-//    }
-//    char* tree = fs_get_string("#");
-//    printf("%s",tree);
 
-//    uint32_t newSize = fs_update_file("#fileD.txt", rickRoll, rickLen);
-//    char* string = (char *) fs_read_file("#fileD");
-//    printf("File content:\n%s",string);
-//    free(string);
+    fs_create_file("#rootDirA|subDirA|fileA.txt", rickRoll, rickLen);
+    fs_create_file("#rootDirA|subDirA|subDirB|fileB.txt", rickRoll, rickLen);
+    fs_create_file("#rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
+    fs_create_file("#rootDirD|fileC.txt", rickRoll, rickLen);
+    fs_create_file("#fileD", rickRoll, rickLen);
+    fs_create_file("#fileE", helloWorld, 12);
+    fs_create_file("#fileF", helloWorld, 12);
+
+    char* dirPath = "#rootDirA|subDirA|subDirB";
+    if(fs_dir_exists(dirPath)){
+        printf("Found dir at %s\n", dirPath);
+    }
+    char* filePath = "#fileE";
+    if(fs_file_exists(filePath)){
+        printf("Found rickRoll at %s\n", filePath);
+    }
+    fs_delete_file(filePath);
+    if(!fs_file_exists(filePath)){
+        printf("File %s has been deleted\n", filePath);
+    }else{
+        printf("File %s stil exists\n", filePath);
+    }
+    char* dir = "#rootDirA|subDirA";
+    fs_delete_dir(dir, true);
+    if(!fs_dir_exists(dir)){
+        printf("Dir %s has been deleted\n", dir);
+    }else{
+        printf("File %s still exists\n", dir);
+    }
+    char* tree = fs_get_string("#");
+    printf("%s",tree);
+
+    uint32_t newSize = fs_update_file("#fileF", rickRoll, rickLen);
+    char* string = (char *) fs_read_file("#fileF");
+    printf("File content:\n%s",string);
+    free(string);
 
     fs_destroy();
 

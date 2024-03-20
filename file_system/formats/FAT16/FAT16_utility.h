@@ -5,16 +5,22 @@
 #include <string.h>
 #include <malloc.h>
 
-
+typedef struct Entry {
+    FAT16File entry;
+    sector_ptr sectorPtr;
+    void* sector;
+    uint32_t inSectorOffset;
+} Entry;
 
 // === IO operations ===
 FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
 FS_STATUS_CODE updateSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size, uint32_t offset);
 FS_STATUS_CODE writeDataSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
+FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size);
 
 void* readSector(FormattedVolume* self, sector_ptr sector);
 void* readSectorSize(FormattedVolume* self, sector_ptr sector, uint32_t size);
-void *readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector);
+void* readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector);
 FS_STATUS_CODE clearSectors(FormattedVolume* self, sector_ptr startSector, uint32_t count);
 
 FS_STATUS_CODE
@@ -22,15 +28,17 @@ writeFileEntry(FormattedVolume *self, FAT16File fileEntry, cluster_ptr entryTabl
 FAT16File readFileEntry(FormattedVolume* self, sector_ptr tableStart, uint32_t index);
 //FS_STATUS_CODE updateEntry(FormattedVolume* self, sector_ptr entryTable, FAT16File fat16File);
 FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *name, bool lookingForDir);
-
+FS_STATUS_CODE deleteFATS(FormattedVolume* self, sector_ptr index);
 
 FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, void *nextSector);
 uint16_t readFATS(FormattedVolume* self, uint16_t index);
 
 // === Resolving ===
 sector_ptr resolveFileTable(FormattedVolume *self, Path path);
-sector_ptr findFreeCluster(FormattedVolume* self);
+sector_ptr findFreeClusterInFAT(FormattedVolume* self);
 FAT16File findEntryInTable(FormattedVolume *self, cluster_ptr entryTable, char* name);
+Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name);
+Entry findFreeEntry(FormattedVolume* self, cluster_ptr entryTable);
 Path parsePath(char* path);
 FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, cluster_ptr entryTable, char* name, bool lookingForDir);
 
