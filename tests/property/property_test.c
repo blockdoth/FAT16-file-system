@@ -1,22 +1,10 @@
-#include <time.h>
-#include "system_test.h"
-#include "../../file_system/file_system.h"
-
-#define GiB 1073741823
-
-#define MAX_DIR_DEPTH 20
-#define MAX_NAME_LENGTH 10
-#define MIN_NAME_LENGTH 3
-#define MAX_FILES 20
-#define MAX_FILESIZE 1000
-#define MIN_FILESIZE 10
-#define MAX_SUBFOLDERS 5
-#define MAX_DEPTH 10
+#include "../../file_system/file_system_api.h"
+#include "property_test.h"
 
 
 uint32_t dirCount = 0;
 char** createDirs(uint32_t depth, char* basePath){
-    if(depth > MAX_DEPTH){
+    if(depth > MAX_DIR_DEPTH){
         return &basePath;
     }
     char path[1000]; // Adjust size as per your need
@@ -95,41 +83,7 @@ void make_volume(){
 //    }
 }
 
-void register_system_tests(){
+void register_property_tests(){
     register_test(make_volume);
 }
 
-
-char* randomString(uint32_t length){
-    char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    uint8_t charsLength = 52;
-    char* randomName = (char*) malloc(length);
-    for (int i = 0; i < length; i++) {
-        randomName[i] = chars[rand() % charsLength];
-    }
-    return randomName;
-}
-
-char* generatePath() {
-    uint8_t depth = rand() % MAX_DIR_DEPTH + 1;
-    uint8_t* nameLengths = (uint8_t*) malloc(depth);
-    uint8_t totalLength = 1;
-    for (int i = 0; i < depth; i++) {
-        nameLengths[i] = rand() % (MAX_NAME_LENGTH - MIN_NAME_LENGTH + 1) + MIN_NAME_LENGTH;
-        totalLength += nameLengths[i];
-    }
-    char* path = (char*)malloc(totalLength);
-    strcpy(path, "");
-    uint8_t offset = 1;
-    for (int i = 0; i < depth; ++i) {
-        uint8_t len = nameLengths[i];
-        char* name = randomString(len);
-        strncpy(path + offset, name, len);
-        //free(name); // Causes segfault sometimes, idk why
-        offset += len;
-        strcpy(path + offset++, "|");
-    }
-    free(nameLengths);
-    path[totalLength - 1] = '\0';
-    return path;
-}

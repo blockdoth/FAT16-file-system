@@ -1,7 +1,16 @@
+#include "../api/api.h"
+#include "../test_config.h"
 #include "test_framework.h"
-#include "test_config.h"
 
-#define SEQUENTIAL
+
+typedef struct test_case {
+    test_fp ptr;
+    char *name;
+    char *err;
+    int passed;
+    struct test_case *next;
+} test_case;
+
 
 test_case *test_cases = NULL;
 
@@ -146,8 +155,13 @@ void register_tests() {
     register_fat16_utils_tests();
     #endif
 
-    #ifdef SYSTEM_TESTS
-    register_system_tests();
+
+    #ifdef API_TESTS
+    register_api_tests();
+    #endif
+
+    #ifdef PROPERTY_TESTS
+    register_property_tests();
     #endif
 }
 

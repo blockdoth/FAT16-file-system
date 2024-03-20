@@ -9,7 +9,7 @@
 #include <malloc.h>
 #include <string.h>
 
-#define DEBUG_FAT16
+//#define DEBUG_FAT16
 
 #define FAT16_MINIMUM_SIZE 1024
 #define FAT16_ENTRY_SIZE 32

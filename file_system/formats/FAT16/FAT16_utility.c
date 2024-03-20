@@ -248,7 +248,7 @@ Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name){
     uint32_t offset;
     while(entriesRead < maxEntries){
         sector = readSector(self,currentSector);
-        for (offset = 0; offset < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
+        for (offset = 0; offset * FAT16_ENTRY_SIZE < self->info->bytesPerSector && entriesRead < maxEntries; offset++) {
             entry = *(FAT16File*) (sector + offset * FAT16_ENTRY_SIZE);
             entriesRead++;
             if(entry.name == 0x00){

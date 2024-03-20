@@ -24,13 +24,7 @@
 void register_tests();
 typedef void (*test_fp)();
 
-typedef struct test_case {
-    test_fp ptr;
-    char *name;
-    char *err;
-    int passed;
-    struct test_case *next;
-} test_case;
+
 
 
 #endif

@@ -56,8 +56,8 @@ int main() {
     char* tree = fs_get_string("#");
     printf("%s",tree);
 
-    uint32_t newSize = fs_update_file("#fileF", rickRoll, rickLen);
-    char* string = (char *) fs_read_file("#fileF");
+    //uint32_t newSize = fs_update_file("#fileF", rickRoll, rickLen);
+    char* string = (char *) fs_read_file_section("#fileF", 2, 2);
     printf("File content:\n%s",string);
     free(string);
 

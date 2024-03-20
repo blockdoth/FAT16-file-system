@@ -120,6 +120,8 @@ FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path path, FileMetadata* f
 }
 
 uint32_t FAT16UpdateFile(FormattedVolume* self, Path path, void* fileData, uint32_t dataSize){
+    //TODO
+    return -1;
     sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     if(checkNamingCollusion(self, entryTable, name, false) == false){
@@ -236,50 +238,40 @@ void* FAT16ReadFile(FormattedVolume* self, Path path) {
 }
 
 void* FAT16ReadFileSection(FormattedVolume* self, Path path, uint32_t offset, uint32_t chunkSize){
+    //TODO
+    return NULL;
+
     sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path.path[path.depth];
     if(checkNamingCollusion(self, entryTable, name, false) == FS_FILE_NOT_FOUND){
         return NULL;
     }
     FAT16File fat16File = findEntryInTable(self, entryTable, name);
-    char* fileChunk = malloc(chunkSize);
-    uint32_t dataPointer = 0;
+    char* fileSection = malloc(fat16File.fileSize);
+
+    uint32_t dataPointer = offset;
     uint32_t bytesInSector = self->info->bytesPerSector;
 
     uint16_t currentFATEntry = fat16File.fileClusterStart;
-    uint16_t prevFATEntry;
     uint32_t bytesLeftToRead = chunkSize;
-    uint32_t totalSectorCount = 0;
-    uint32_t sectorsOffset = offset / self->info->bytesPerSector;
-    uint32_t bytesOffset = offset % self->info->bytesPerSector;
-    uint8_t sectorIndex;
+    uint16_t readSize = bytesInSector;
     do{
-        sectorIndex = 0;
+        uint8_t sectorIndex = 0;
         while(bytesLeftToRead > 0 && sectorIndex < self->info->sectorsPerCluster){
-            totalSectorCount++;
-            if(totalSectorCount > sectorsOffset){
-                uint32_t readChunkSize = bytesInSector;
-                if(bytesLeftToRead < self->info->bytesPerSector){
-                    readChunkSize = bytesLeftToRead;
-                }
-                void* chunk = readClusterSector(self, currentFATEntry, sectorIndex); //TODO directly write from volume
-                memcpy(fileChunk + dataPointer, chunk + bytesOffset, readChunkSize);
-                free(chunk);
-                sectorIndex++;
-                dataPointer += bytesInSector;
-                bytesLeftToRead -= bytesInSector;
+            if(bytesLeftToRead < bytesInSector){
+                readSize = bytesLeftToRead; // Prevent unwanted data being read
             }
+            void* chunk = readClusterSector(self, currentFATEntry, sectorIndex); //TODO directly write from volume
+            memcpy(fileSection + dataPointer, chunk, readSize);
+            free(chunk);
+            sectorIndex++;
+            dataPointer += readSize;
+            bytesLeftToRead -= readSize;
         }
-        prevFATEntry = currentFATEntry;
         currentFATEntry = readFATS(self, currentFATEntry);
     } while(currentFATEntry != swapEndianness16Bit(0xFFF8));
-
-    if(bytesOffset > 0){
-        void* chunk = readClusterSector(self, prevFATEntry, sectorIndex); //TODO directly write from volume
-        memcpy(fileChunk + dataPointer, chunk + bytesOffset, bytesOffset);
-    }
     destroyPath(path);
-    return fileChunk;
+    return fileSection;
 }
 
 
