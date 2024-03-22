@@ -1,11 +1,12 @@
 #include <stdio.h>
 
 #include "file_system_api.h"
+#include "file_system.h"
 
 #define GiB 1073741823 // Bytes
 
 
-//#define DEBUG_VOLUME // Enable debug mode
+//#R|define DEBUG_VOLUME // Enable debug mode
 
 
 void* rickRoll;
@@ -15,28 +16,28 @@ int main() {
     //printf("Mounting ramdisk\n");
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB);
 
-    fs_format(raw_volume, FAT16);
+    fs_format(raw_volume, FAT16, DRIVE_R);
     uint32_t rickLen = strlen((char*) rickRoll) + 1;
 
-    fs_create_dir( "#rootDirA");
-    fs_create_dir( "#rootDirA|subDirA");
-    fs_create_dir( "#rootDirA|subDirA|subDirB");
-    fs_create_dir( "#rootDirA|subDirC");
-    fs_create_dir( "#rootDirD");
+    fs_create_dir( "#R|rootDirA");
+    fs_create_dir( "#R|rootDirA|subDirA");
+    fs_create_dir( "#R|rootDirA|subDirA|subDirB");
+    fs_create_dir( "#R|rootDirA|subDirC");
+    fs_create_dir( "#R|rootDirD");
 
-    fs_create_file("#rootDirA|subDirA|fileA.txt", rickRoll, rickLen);
-    fs_create_file("#rootDirA|subDirA|subDirB|fileB.txt", rickRoll, rickLen);
-    fs_create_file("#rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
-    fs_create_file("#rootDirD|fileC.txt", rickRoll, rickLen);
-    fs_create_file("#fileD", rickRoll, rickLen);
-    fs_create_file("#fileE", helloWorld, 12);
-    fs_create_file("#fileF", helloWorld, 12);
+    fs_create_file("#R|rootDirA|subDirA|fileA.txt", rickRoll, rickLen);
+    fs_create_file("#R|rootDirA|subDirA|subDirB|fileB.txt", rickRoll, rickLen);
+    fs_create_file("#R|rootDirA|subDirC|fileC.txt", rickRoll, rickLen);
+    fs_create_file("#R|rootDirD|fileC.txt", rickRoll, rickLen);
+    fs_create_file("#R|fileD", rickRoll, rickLen);
+    fs_create_file("#R|fileE", helloWorld, 12);
+    fs_create_file("#R|fileF", helloWorld, 12);
 
-    char* dirPath = "#rootDirA|subDirA|subDirB";
+    char* dirPath = "#R|rootDirA|subDirA|subDirB";
     if(fs_dir_exists(dirPath)){
         printf("Found dir at %s\n", dirPath);
     }
-    char* filePath = "#fileE";
+    char* filePath = "#R|fileE";
     if(fs_file_exists(filePath)){
         printf("Found rickRoll at %s\n", filePath);
     }
@@ -46,22 +47,22 @@ int main() {
     }else{
         printf("File %s stil exists\n", filePath);
     }
-    char* dir = "#rootDirA|subDirA";
+    char* dir = "#R|rootDirA|subDirA";
     fs_delete_dir(dir, true);
     if(!fs_dir_exists(dir)){
         printf("Dir %s has been deleted\n", dir);
     }else{
         printf("File %s still exists\n", dir);
     }
-    char* tree = fs_get_string("#");
+    char* tree = fs_get_string("#R|");
     printf("%s",tree);
 
-    //uint32_t newSize = fs_update_file("#fileF", rickRoll, rickLen);
-    char* string = (char *) fs_read_file_section("#fileF", 2, 2);
+    //uint32_t newSize = fs_update_file("#R|fileF", rickRoll, rickLen);
+    char* string = (char *) fs_read_file("#R|fileF");
     printf("File content:\n%s",string);
     free(string);
 
-    fs_destroy();
+    fs_destroy(DRIVE_R);
 
     return 0;
 }

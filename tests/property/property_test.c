@@ -12,7 +12,7 @@ char** createDirs(uint32_t depth, char* basePath){
     strcpy(path, basePath);
     uint32_t basePathLen = strlen(basePath);
     if(basePathLen == 0){
-        strcat(path, "#");
+        strcat(path, "#D|");
     }else{
         strcat(path, "|");
 
@@ -53,7 +53,7 @@ void make_volume(){
     srand(time(NULL));
 
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB);
-    fs_format(raw_volume, FAT16);
+    fs_format(raw_volume, FAT16, DRIVE_D);
 
     void* filesData[MAX_FILES];
     for (int i = 0; i < MAX_FILES; ++i) {
@@ -68,7 +68,7 @@ void make_volume(){
 
     char** path = createDirs(0, "");
     uint32_t pathCount = sizeof(path) / sizeof (char **);
-    char* tree = fs_get_string("#");
+    char* tree = fs_get_string("#D");
     printf("%s", tree);
     printf("FS contains %u directories\n", dirCount);
 

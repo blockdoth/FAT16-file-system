@@ -8,7 +8,6 @@
 #include <string.h>
 #include <malloc.h>
 
-
 typedef struct FileMetadata {
     char* name;
     uint8_t read_only : 1;
@@ -48,6 +47,7 @@ typedef struct FATVolumeInfo {
 typedef struct Path {
     char** path;
     uint8_t depth;
+    DriveID driveId;
 } Path;
 
 typedef struct FormattedVolume {
@@ -64,8 +64,6 @@ typedef struct FormattedVolume {
     FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path path);
     char* (*toString)(struct FormattedVolume* self, Path path);
 } FormattedVolume;
-
-
 
 
 uint16_t getCurrentTimeMs();
@@ -96,7 +94,7 @@ char* FAT16ToTreeString(FormattedVolume* self, Path path);
 
 // │ Operation │  Files  │ Directories  │
 // ├───────────┼─────────┼──────────────┤
-// │ Finding   │   [ ]   │     [ ]      │
+// │ Finding   │   [X]   │     [X]      │
 // │ Reading   │   [X]   │     [X]      │
 // │ Writing   │   [X]   │     [X]      │
 // │ Updating  │   [ ]   │     [ ]      │

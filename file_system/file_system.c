@@ -1,22 +1,22 @@
 #include "file_system.h"
 
+FormattedVolume* drives[maxDriveCount];
 
-FormattedVolume* formatted_volume;
-
-FS_STATUS_CODE fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem){
+FS_STATUS_CODE fs_format(RawVolume *raw_volume, FILESYSTEM_TYPE filesystem, DriveID driveID) {
     switch (filesystem) {
         case FAT16:
-            formatted_volume = formatFAT16Volume(raw_volume);
+            drives[driveID] =  formatFAT16Volume(raw_volume);
             return FS_SUCCES;
         default:
     }
     return FS_FORMAT_NOT_SUPPORTED;
 }
 
-void fs_destroy() {
-    formatted_volume->rawVolume->destroy(formatted_volume->rawVolume);
-    free(formatted_volume->info);
-    free(formatted_volume);
+void fs_destroy(DriveID driveID) {
+    FormattedVolume* currentDrive = drives[driveID];
+    currentDrive->rawVolume->destroy(currentDrive->rawVolume);
+    free(currentDrive->info);
+    free(currentDrive);
 }
 
 
@@ -26,7 +26,8 @@ FS_STATUS_CODE fs_create_file(char* path, void* file_data, uint32_t file_size){
     }
     Path resolvedPath = parsePath(path);
     FileMetadata fileMetadata = initFile(path, file_size);
-    return formatted_volume->createFile(formatted_volume, resolvedPath, &fileMetadata, file_data);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->createFile(currentDrive, resolvedPath, &fileMetadata, file_data);
 }
 
 
@@ -37,7 +38,8 @@ FS_STATUS_CODE fs_create_dir(char* path){
     Path resolvedPath = parsePath(path);
     FileMetadata fileMetadata = initFile(path, 0);
     fileMetadata.directory = 1;
-    return formatted_volume->createDir(formatted_volume, resolvedPath,  &fileMetadata);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->createDir(currentDrive, resolvedPath,  &fileMetadata);
 }
 
 void* fs_read_file(char* path){
@@ -45,7 +47,8 @@ void* fs_read_file(char* path){
         return NULL;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->readFile(formatted_volume, resolvedPath);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->readFile(currentDrive, resolvedPath);
 }
 
 void* fs_read_file_section(char* path, uint32_t offset, uint32_t size){
@@ -53,7 +56,8 @@ void* fs_read_file_section(char* path, uint32_t offset, uint32_t size){
         return NULL;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->readFileSection(formatted_volume, resolvedPath, offset, size);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->readFileSection(currentDrive, resolvedPath, offset, size);
 }
 
 FS_STATUS_CODE fs_file_exists(char* path){
@@ -61,21 +65,24 @@ FS_STATUS_CODE fs_file_exists(char* path){
         return FS_INVALID_PATH;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->checkFile(formatted_volume,resolvedPath);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->checkFile(currentDrive,resolvedPath);
 }
 FS_STATUS_CODE fs_dir_exists(char* path){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->checkDir(formatted_volume,resolvedPath);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->checkDir(currentDrive,resolvedPath);
 }
 uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->updateFile(formatted_volume, resolvedPath, data, new_file_size);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->updateFile(currentDrive, resolvedPath, data, new_file_size);
 }
 
 
@@ -107,7 +114,8 @@ FS_STATUS_CODE fs_delete_dir(char* path, bool recursive){
         return FS_INVALID_PATH;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->deleteDir(formatted_volume, resolvedPath);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->deleteDir(currentDrive, resolvedPath);
 }
 
 FS_STATUS_CODE fs_delete_file(char* path){
@@ -115,7 +123,8 @@ FS_STATUS_CODE fs_delete_file(char* path){
         return FS_INVALID_PATH;
     }
     Path resolvedPath = parsePath(path);
-    return formatted_volume->deleteFile(formatted_volume, resolvedPath);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->deleteFile(currentDrive, resolvedPath);
 }
 
 
@@ -123,12 +132,21 @@ FS_STATUS_CODE checkValidPath(char* path){
     if(path[0] != '#' || path[0] == '\0'){
         return FS_INVALID_PATH;
     }
-    return FS_SUCCES;
+    path++;
+    switch (*path) {
+        case 'D':
+        case 'R':
+        case 'B':
+            return FS_SUCCES;
+        default:
+            return FS_INVALID_PATH;
+    }
 }
 
 char* fs_get_string(char* path){
     Path resolvedPath = parsePath(path);
-    return formatted_volume->toString(formatted_volume,resolvedPath);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->toString(currentDrive,resolvedPath);
 }
 
 Path parsePath(char* path){
@@ -138,6 +156,22 @@ Path parsePath(char* path){
 //        return (Path) {resolvedPath, 0};
 //    }
     path++; // Skip '#'
+    DriveID driveId;
+    switch (*path) {
+        case 'D':
+            driveId = DRIVE_D;
+            break;
+        case 'R':
+            driveId = DRIVE_R;
+            break;
+        case 'B':
+            driveId = DRIVE_B;
+            break;
+        default:
+            // Shouldnt ever be reached
+            driveId = INVALID_DRIVE_ID;
+    }
+    path+=2;
     char* tempPath = path;
     uint16_t depth = 0;
     while(*tempPath != '\0'){
@@ -146,7 +180,6 @@ Path parsePath(char* path){
         }
     }
     char** resolvedPath = (char**) malloc((depth + 1) * sizeof(char*));
-
     int i = 0;
     tempPath = path;
     char* start = path;
@@ -162,10 +195,8 @@ Path parsePath(char* path){
         }
         //tempPath++;
     }
-    return (Path){
-            resolvedPath,
-            depth
-    };
+
+    return (Path){resolvedPath,depth, driveId};
 }
 
 void destroyPath(Path path){

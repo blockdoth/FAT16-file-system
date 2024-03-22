@@ -8,8 +8,8 @@ typedef enum FILESYSTEM_TYPE{
 } FILESYSTEM_TYPE;
 
 
-FS_STATUS_CODE fs_format(RawVolume* raw_volume, FILESYSTEM_TYPE filesystem);
-void fs_destroy();
+FS_STATUS_CODE fs_format(RawVolume *raw_volume, FILESYSTEM_TYPE filesystem, DriveID driveID);
+void fs_destroy(DriveID driveID);
 
 FS_STATUS_CODE fs_file_exists(char* path);
 FS_STATUS_CODE fs_create_file(char* path, void* file_data, uint32_t file_size);

@@ -28,5 +28,16 @@ typedef enum FS_STATUS_CODE {
     FS_DELETION_FAILED = false,
 } FS_STATUS_CODE;
 
+typedef enum DriveID {
+    DRIVE_D = 0,
+    DRIVE_R = 1,
+    DRIVE_B = 2,
+    INVALID_DRIVE_ID = -1
+    // etc etc
+} DriveID; // IMPORTANT, keep in sync with the switch statement in parsePath
+
+#define maxDriveCount 2 // This value should be sizeof DriveID
+
+
 
 #endif //FILE_SYSTEM_COMMON_TYPES_H
