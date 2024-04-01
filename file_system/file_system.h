@@ -29,6 +29,7 @@ typedef struct FileMetadata {
 typedef struct FileIdentifier {
     char* identifier;
 }FileIdentifier;
+
 typedef struct FATVolumeInfo {
     sector_ptr FAT1Start;
     sector_ptr FAT2Start;
