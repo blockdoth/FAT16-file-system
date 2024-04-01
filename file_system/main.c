@@ -10,7 +10,7 @@
 
 
 void* rickRoll;
-void* helloWorld = "Hello World";
+void* helloWorld = "Hello World ";
 
 int main() {
     //printf("Mounting ramdisk\n");
@@ -57,9 +57,18 @@ int main() {
     char* tree = fs_get_string("#R|");
     printf("%s",tree);
 
-    //uint32_t newSize = fs_update_file("#R|fileF", rickRoll, rickLen);
     char* string = (char *) fs_read_file("#R|fileF");
-    printf("File content:\n%s",string);
+    printf("File content before expand:\n%.*s\n",12, string);
+    free(string);
+
+    uint32_t newSize = fs_expand_file("#R|fileF", helloWorld, 12);
+    string = (char *) fs_read_file("#R|fileF");
+    printf("File content after expand:\n%.*s\n",newSize, string);
+    free(string);
+
+    uint32_t reducedSize = fs_update_file("#R|fileF", helloWorld, 12, 6);
+    string = (char *) fs_read_file("#R|fileF");
+    printf("File content after update:\n%.*s\n", reducedSize, string);
     free(string);
 
     fs_destroy(DRIVE_R);

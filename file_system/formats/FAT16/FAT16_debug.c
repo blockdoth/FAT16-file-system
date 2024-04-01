@@ -6,8 +6,8 @@ void printRootSectorShort(FormattedVolume* self){
     printf("├─────────────────────────────────────────┤\n");
 
     FAT16File entry;
-    for(uint32_t i = 0; i < self->info->rootSectorCount; i++){
-        entry = readFileEntry(self, self->info->rootSectionStart, i);
+    for(uint32_t i = 0; i < self->info->FAT16.rootSectorCount; i++){
+        entry = readFileEntry(self, self->info->FAT16.rootSectionStart, i);
         if(entry.name[0] == 0x00){
             break;
         } else if(entry.name[0] == 0xe5){
@@ -42,11 +42,11 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
     char* color = colors[colorPointer];
     size_t ansiLength = strlen(color) + strlen(RESET);
     char* treeString = (char*) malloc(strlen(prefix) * sizeof(char*));
-    treeString[0] = '\0';
+    strcpy(treeString, "");
     FAT16File entry;
     FAT16File nextEntry;
 
-    for(uint32_t i = 0; i < self->info->bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
+    for(uint32_t i = 0; i < self->info->FAT16.bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
         entry = readFileEntry(self, tableStart, i);
         nextEntry = readFileEntry(self, tableStart, i + 1);
         bool nextEntryIsDeleted = false;
@@ -98,7 +98,7 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
 char* printTreeToString(FormattedVolume* self){
     char* color = colors[colorPointer];
     size_t ansiLength = strlen(color) + strlen(RESET);
-    char* tree = printTreeHelper(self, self->info->rootSectionStart, "");
+    char* tree = printTreeHelper(self, self->info->FAT16.rootSectionStart, "");
     char* root = (char*) malloc( (ansiLength + strlen(tree) + 7) * sizeof (char*));
     sprintf(root,"%sRoot%s\n%s", color,  RESET, tree);
     return root;
@@ -214,9 +214,9 @@ void printFATTable(FormattedVolume* self){
         i++;
     }
     printf("│ ⋮         ⋮             │\n");
-    printf("│ %u  Total Entries    │\n", self->info->FATEntryCount);
+    printf("│ %u  Total Entries    │\n", self->info->FAT16.FATEntryCount);
     printf("├─────────────────────────┤\n");
-    printf("│ FAT Addressed: %luMB   │\n", self->info->totalAddressableSize / 1048576);
+    printf("│ FAT Addressed: %luMB   │\n", self->info->FAT16.totalAddressableSize / 1048576);
     printf("└─────────────────────────┘\n");
 
 }

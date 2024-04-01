@@ -8,7 +8,6 @@ char* randomString(uint32_t length){
     for (int i = 0; i < length; i++) {
         randomName[i] = chars[rand() % charsLength];
     }
-    randomName[length] = '\0';
     return randomName;
 }
 
@@ -34,4 +33,16 @@ char* generatePath() {
     free(nameLengths);
     path[totalLength - 1] = '\0';
     return path;
+}
+
+bool memCompare(char* fileA, char* fileB, uint32_t size){
+    for (uint32_t i = 0; i < size; ++i) {
+        char* a = fileA + i;
+        char* b = fileB + i;
+        if(*a != *b){
+            printf("Found difference at %u", i);
+            return false;
+        }
+    }
+    return true;
 }

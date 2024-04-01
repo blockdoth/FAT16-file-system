@@ -76,13 +76,23 @@ FS_STATUS_CODE fs_dir_exists(char* path){
     FormattedVolume* currentDrive = drives[resolvedPath.driveId];
     return currentDrive->checkDir(currentDrive,resolvedPath);
 }
-uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size){
+
+uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size, uint32_t offset){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
     Path resolvedPath = parsePath(path);
     FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->updateFile(currentDrive, resolvedPath, data, new_file_size);
+    return currentDrive->updateFile(currentDrive, resolvedPath, data, new_file_size, offset);
+}
+
+uint32_t fs_expand_file(char* path, void* data, uint32_t new_file_size){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
+    Path resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
+    return currentDrive->expandFile(currentDrive, resolvedPath, data, new_file_size);
 }
 
 

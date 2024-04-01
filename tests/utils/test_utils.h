@@ -5,6 +5,7 @@
 #include <malloc.h>
 #include <stdlib.h>
 #include <string.h>
+#include "stdbool.h"
 
 #define GiB 1073741823
 
@@ -21,6 +22,6 @@
 
 char* randomString(uint32_t length);
 char* generatePath();
-
+bool memCompare(char* fileA, char* fileB, uint32_t size);
 
 #endif //FILE_SYSTEM_TEST_UTILS_H
