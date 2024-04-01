@@ -13,7 +13,7 @@
 #define MIN_DIR_DEPTH 2
 #define MAX_NAME_LENGTH 10
 #define MIN_NAME_LENGTH 3
-#define MAX_FILES 20
+#define MAX_FILES 10
 #define MAX_FILESIZE 1000
 #define MIN_FILESIZE 10
 #define MAX_SUBFOLDERS 5
