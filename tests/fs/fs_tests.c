@@ -1,5 +1,5 @@
 #undef DEBUG_FAT16
-#include "api.h"
+#include "fs_tests.h"
 
 #define MAX_NOT_NESTED_FILES 10
 #define MAX_NESTED_FILES 3
@@ -9,12 +9,12 @@
 
 void setupFormattedVolume(){
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB/4);
-    fs_format(raw_volume, FAT16, DRIVE_R);
+    fs_format(raw_volume, (FormatSpecifier){FAT16,{512,64}}, DRIVE_R);
 }
 
 void formatVolumeTest(){
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB/4);
-    FS_STATUS_CODE statusCode = fs_format(raw_volume, FAT16, DRIVE_R);
+    FS_STATUS_CODE statusCode = fs_format(raw_volume, (FormatSpecifier){FAT16,{512,64}}, DRIVE_R);
     assert_int_equals(statusCode, FS_SUCCES);
     fs_destroy(DRIVE_R);
 }
@@ -182,7 +182,7 @@ void smallExpand(){
 
 void biggerExpand(){
     setupFormattedVolume();
-    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER - 1;
+    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER / 2;
     char* initialData = randomString(dataSize);
     char* expandedData = randomString(dataSize);
     initialData = realloc(initialData,2 * dataSize);
@@ -190,6 +190,7 @@ void biggerExpand(){
     fs_create_file("#R|small", initialData, dataSize);
     fs_expand_file("#R|small", expandedData, dataSize);
     char* returnedFile = fs_read_file("#R|small");
+    memCompare(returnedFile, initialData, 2 * dataSize);
     assert_mem_equals(returnedFile, initialData, 2 * dataSize);
     free(returnedFile);
     free(initialData);
@@ -199,7 +200,7 @@ void biggerExpand(){
 
 void bigExpand(){
     setupFormattedVolume();
-    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER;
+    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER * 2;
     char* initialData = randomString(dataSize);
     char* expandedData = randomString(dataSize);
     initialData = realloc(initialData,2 * dataSize);

@@ -49,7 +49,7 @@ FAT16File convertMetadataToFAT16File(FileMetadata* fileMetadata);
 uint8_t convertToDirAttributes(FileMetadata* file);
 
 // === initializations ===
-BootSector initBootSector(uint32_t volumeSize);
+BootSector initBootSector(uint32_t volumeSize, FAT16Config fat16Config);
 FATVolumeInfo* initFATVolumeInfo(BootSector bootSector);
 
 // === Misc ===

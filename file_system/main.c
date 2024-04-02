@@ -16,7 +16,7 @@ int main() {
     //printf("Mounting ramdisk\n");
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB);
 
-    fs_format(raw_volume, FAT16, DRIVE_R);
+    fs_format(raw_volume, (FormatSpecifier){FAT16,{512,64}}, DRIVE_R);
     uint32_t rickLen = strlen((char*) rickRoll) + 1;
 
     fs_create_dir( "#R|rootDirA");

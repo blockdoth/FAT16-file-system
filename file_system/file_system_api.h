@@ -7,8 +7,22 @@ typedef enum FILESYSTEM_TYPE{
     FAT16
 } FILESYSTEM_TYPE;
 
+typedef struct {
+    uint16_t bytesPerSector;
+    uint8_t sectorsPerCluster;
+} FAT16Config;
 
-FS_STATUS_CODE fs_format(RawVolume *raw_volume, FILESYSTEM_TYPE filesystem, DriveID driveID);
+typedef union {
+    FAT16Config fat16Config;
+} FormatConfig;
+
+typedef struct {
+    FILESYSTEM_TYPE filesystemType;
+    FormatConfig formatConfig;
+} FormatSpecifier;
+
+
+FS_STATUS_CODE fs_format(RawVolume *raw_volume, FormatSpecifier formatSpecifier, DriveID driveID);
 void fs_destroy(DriveID driveID);
 
 FS_STATUS_CODE fs_file_exists(char* path);

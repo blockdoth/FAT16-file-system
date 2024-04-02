@@ -2,10 +2,10 @@
 
 FormattedVolume* drives[maxDriveCount];
 
-FS_STATUS_CODE fs_format(RawVolume *raw_volume, FILESYSTEM_TYPE filesystem, DriveID driveID) {
-    switch (filesystem) {
+FS_STATUS_CODE fs_format(RawVolume *raw_volume, FormatSpecifier formatSpecifier, DriveID driveID) {
+    switch (formatSpecifier.filesystemType) {
         case FAT16:
-            drives[driveID] =  formatFAT16Volume(raw_volume);
+            drives[driveID] = formatFAT16Volume(raw_volume, formatSpecifier.formatConfig.fat16Config);
             return FS_SUCCES;
         default:
     }

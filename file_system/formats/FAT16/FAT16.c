@@ -21,12 +21,12 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInf
     formattedVolume->toString = FAT16ToTreeString;
     return formattedVolume;
 }
-FormattedVolume* formatFAT16Volume(RawVolume *volume) {
+FormattedVolume *formatFAT16Volume(RawVolume *volume, FAT16Config fat16Config) {
     if(!checkFAT16Compatible(volume)){
         return NULL;
     }
 
-    BootSector bootSector = initBootSector(volume->volumeSize);
+    BootSector bootSector = initBootSector(volume->volumeSize, fat16Config);
     FATVolumeInfo* volumeInfo = initFATVolumeInfo(bootSector);
     FormattedVolume* formattedVolume = initFormattedVolume(volume, volumeInfo);
 
@@ -97,7 +97,7 @@ FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path* path, FileMetadata* 
         // gets overwritten immediately for multi cluster files
         currentCluster = findFreeClusterInFAT(self);
         if(bytesLeftToWrite == 0){
-            break; 
+            break;
         }
         writeFATS(self,prevCluster - self->info->FAT16.dataSectionStart, &currentCluster);
     }
@@ -227,9 +227,18 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
     }
 
     // Writes the rest like normal
+    uint16_t endOfFile = swapEndianness16Bit(0xFFF8);
     sector_ptr currentCluster = startCluster;
-    sector_ptr prevCluster;
+
+    sector_ptr prevCluster = fat16File.fileClusterStart; // Find the prev cluster before the end cluster
+    sector_ptr prevPrevCluster;
+    do{ // Traversing the linkedish list
+        prevPrevCluster = prevCluster;
+        prevCluster = readFATS(self, prevCluster - self->info->FAT16.dataSectionStart);
+    }while(prevCluster != endOfFile);
+    prevCluster = prevPrevCluster;
     uint32_t writeSize;
+    bool normalCluster = false;
     while (bytesLeftToWrite > 0){
         // Write the data
         writeSize = self->info->FAT16.bytesPerSector;
@@ -244,17 +253,18 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
             sectorInCluster++;
         }
         sectorInCluster = 0;
-        prevCluster = currentCluster;
-        uint16_t endOfFile = swapEndianness16Bit(0xFFF8);
-        writeFATS(self,prevCluster - self->info->FAT16.dataSectionStart ,&endOfFile);
+        if(normalCluster == true){
+            writeFATS(self,prevCluster - self->info->FAT16.dataSectionStart ,&endOfFile);
+        }
         // ^ Pre-marks the entry as EOF so we get a new one when calling findFreeClusterInFAT(),
         // gets overwritten immediately for multi cluster files
         currentCluster = findFreeClusterInFAT(self);
-        if(bytesLeftToWrite == 0){
-            break;
-        }
         writeFATS(self,prevCluster - self->info->FAT16.dataSectionStart, &currentCluster);
+        prevCluster = currentCluster;
+        normalCluster = true;
     }
+    //currentCluster = findFreeClusterInFAT(self);
+    writeFATS(self,currentCluster - self->info->FAT16.dataSectionStart ,&endOfFile);
     // Write to the metadata to the right table
     fat16File.fileSize += newDataSize;
     updateFileEntry(self, fat16File, entryTable);

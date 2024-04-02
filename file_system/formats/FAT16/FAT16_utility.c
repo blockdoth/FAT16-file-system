@@ -157,7 +157,7 @@ uint16_t readFATS(FormattedVolume* self, uint16_t index){
     free(sectorFAT1);
     free(sectorFAT2);
     if(FAT1 != FAT2){
-        printf("FATS are out of sync, returning FAT1");
+        printf("FATS are out of sync, returning FAT1\n");
     }
     return FAT1;
 }
@@ -369,12 +369,12 @@ uint8_t convertToDirAttributes(FileMetadata* file) {
 
 // Init structs
 
-BootSector initBootSector(uint32_t volumeSize){
+BootSector initBootSector(uint32_t volumeSize, FAT16Config fat16Config) {
     BootSector bootSector = {
             {0xEB, 0x00, 0x90},
             "MSWIN4.1",
-            512,
-            64,
+            fat16Config.bytesPerSector,
+            fat16Config.sectorsPerCluster,
             1,
             2,
             512,

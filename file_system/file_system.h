@@ -82,7 +82,7 @@ void destroyPath(Path* path);
 DriveID parseDriveId(char* id);
 // FILE api
 
-FormattedVolume* formatFAT16Volume(RawVolume *volume);
+FormattedVolume *formatFAT16Volume(RawVolume *volume, FAT16Config fat16Config);
 FS_STATUS_CODE FAT16WriteFile(FormattedVolume* self, Path* path, FileMetadata* fileMetadata, void* fileData);
 FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path* path, FileMetadata* fileMetadata);
 void* FAT16ReadFile(FormattedVolume* self, Path* path);
