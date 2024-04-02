@@ -24,10 +24,13 @@ FS_STATUS_CODE fs_create_file(char* path, void* file_data, uint32_t file_size){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FileMetadata fileMetadata = initFile(path, file_size);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->createFile(currentDrive, resolvedPath, &fileMetadata, file_data);
+    Path* resolvedPath = parsePath(path);
+    FileMetadata* fileMetadata = initFile(path, file_size);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    FS_STATUS_CODE statusCode = currentDrive->createFile(currentDrive, resolvedPath, fileMetadata, file_data);
+    destroyPath(resolvedPath);
+    destroyMetaData(fileMetadata);
+    return statusCode;
 }
 
 
@@ -35,87 +38,100 @@ FS_STATUS_CODE fs_create_dir(char* path){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FileMetadata fileMetadata = initFile(path, 0);
-    fileMetadata.directory = 1;
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->createDir(currentDrive, resolvedPath,  &fileMetadata);
+    Path* resolvedPath = parsePath(path);
+    FileMetadata* fileMetadata = initFile(path, 0);
+    fileMetadata->directory = 1;
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    FS_STATUS_CODE statusCode = currentDrive->createDir(currentDrive, resolvedPath,  fileMetadata);
+    destroyPath(resolvedPath);
+    destroyMetaData(fileMetadata);
+    return statusCode;
 }
 
 void* fs_read_file(char* path){
     if(!checkValidPath(path)){
         return NULL;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->readFile(currentDrive, resolvedPath);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    void* file = currentDrive->readFile(currentDrive, resolvedPath);
+    destroyPath(resolvedPath);
+    return file;
 }
 
 void* fs_read_file_section(char* path, uint32_t offset, uint32_t size){
     if(!checkValidPath(path)){
         return NULL;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->readFileSection(currentDrive, resolvedPath, offset, size);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    void* file = currentDrive->readFileSection(currentDrive, resolvedPath, offset, size);
+    destroyPath(resolvedPath);
+    return file;
 }
 
 FS_STATUS_CODE fs_file_exists(char* path){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->checkFile(currentDrive,resolvedPath);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    FS_STATUS_CODE statusCode = currentDrive->checkFile(currentDrive,resolvedPath);
+    destroyPath(resolvedPath);
+    return statusCode;
 }
 FS_STATUS_CODE fs_dir_exists(char* path){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->checkDir(currentDrive,resolvedPath);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    FS_STATUS_CODE statusCode = currentDrive->checkDir(currentDrive,resolvedPath);
+    destroyPath(resolvedPath);
+    return statusCode;
 }
 
 uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size, uint32_t offset){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->updateFile(currentDrive, resolvedPath, data, new_file_size, offset);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    uint32_t newFileSize = currentDrive->updateFile(currentDrive, resolvedPath, data, new_file_size, offset);
+    destroyPath(resolvedPath);
+    return newFileSize;
 }
 
-uint32_t fs_expand_file(char* path, void* data, uint32_t new_file_size){
+uint32_t fs_expand_file(char* path, void* newData, uint32_t newDataSize){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->expandFile(currentDrive, resolvedPath, data, new_file_size);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    uint32_t newFileSize = currentDrive->expandFile(currentDrive, resolvedPath, newData, newDataSize);
+    destroyPath(resolvedPath);
+    return newFileSize;
 }
 
 
-FileMetadata initFile(char* path, uint32_t file_size){
+FileMetadata* initFile(char* path, uint32_t file_size){
     char* name = extractName(path);
-    FileMetadata fileMetadata = {
-            name,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            strlen(name) > 10 ? 1: 0,
-            getCurrentTimeMs(),
-            getCurrentTime(),
-            getCurrentDate(),
-            getCurrentDate(),
-            getCurrentTime(),
-            getCurrentDate(),
-            file_size,
-    };
-
+    FileMetadata* fileMetadata = (FormattedVolume*) malloc(sizeof(FileMetadata));
+    fileMetadata->name = name;
+    fileMetadata->fileSize = file_size;
+    fileMetadata->read_only = 0;
+    fileMetadata->hidden = 0;
+    fileMetadata->system = 0;
+    fileMetadata->volume_id = 0;
+    fileMetadata->directory = 0;
+    fileMetadata->archive = 0;
+    fileMetadata->long_name = strlen(name) > 10 ? 1: 0;
+    fileMetadata->creationTimeTenth = getCurrentTimeMs();
+    fileMetadata->creationTime = getCurrentTime();
+    fileMetadata->creationDate = getCurrentDate();
+    fileMetadata->lastAccessedDate = getCurrentDate();
+    fileMetadata->timeOfLastWrite = getCurrentTime();
+    fileMetadata->dateOfLastWrite = getCurrentDate();
     return fileMetadata;
 }
 
@@ -123,18 +139,22 @@ FS_STATUS_CODE fs_delete_dir(char* path, bool recursive){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->deleteDir(currentDrive, resolvedPath);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    FS_STATUS_CODE statusCode = currentDrive->deleteDir(currentDrive, resolvedPath);
+    destroyPath(resolvedPath);
+    return statusCode;
 }
 
 FS_STATUS_CODE fs_delete_file(char* path){
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->deleteFile(currentDrive, resolvedPath);
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    FS_STATUS_CODE statusCode = currentDrive->deleteFile(currentDrive, resolvedPath);
+    destroyPath(resolvedPath);
+    return statusCode;
 }
 
 
@@ -154,33 +174,37 @@ FS_STATUS_CODE checkValidPath(char* path){
 }
 
 char* fs_get_string(char* path){
-    Path resolvedPath = parsePath(path);
-    FormattedVolume* currentDrive = drives[resolvedPath.driveId];
-    return currentDrive->toString(currentDrive,resolvedPath);
+    if(!checkValidPath(path)){
+        return "";
+    }
+    DriveID driveId = parseDriveId(++path);
+    FormattedVolume* currentDrive = drives[driveId];
+    char* string = currentDrive->toString(currentDrive);
+    return string;
 }
 
-Path parsePath(char* path){
-//    if(*path == '\0'){
-//        char** resolvedPath = (char**) malloc(sizeof(char *));
-//        *resolvedPath = "";
-//        return (Path) {resolvedPath, 0};
-//    }
-    path++; // Skip '#'
-    DriveID driveId;
-    switch (*path) {
+DriveID parseDriveId(char* id){
+    switch (*id) {
         case 'D':
-            driveId = DRIVE_D;
-            break;
+            return DRIVE_D;
         case 'R':
-            driveId = DRIVE_R;
-            break;
+            return DRIVE_R;
         case 'B':
-            driveId = DRIVE_B;
-            break;
+            return DRIVE_B;
         default:
             // Shouldnt ever be reached
-            driveId = INVALID_DRIVE_ID;
+            return INVALID_DRIVE_ID;
     }
+}
+
+Path* parsePath(char* path){
+//    if(*path == '\0'){
+//        char** resolvedPaths = (char**) malloc(sizeof(char *));
+//        *resolvedPaths = "";
+//        return (Path) {resolvedPaths, 0};
+//    }
+    path++; // Skip '#'
+    DriveID driveId = parseDriveId(path);
     path+=2;
     char* tempPath = path;
     uint16_t depth = 0;
@@ -189,7 +213,7 @@ Path parsePath(char* path){
             depth++;
         }
     }
-    char** resolvedPath = (char**) malloc((depth + 1) * sizeof(char*));
+    char** resolvedPaths = (char**) malloc((depth + 1) * sizeof(char*));
     int i = 0;
     tempPath = path;
     char* start = path;
@@ -197,24 +221,32 @@ Path parsePath(char* path){
     while (*tempPath++ != '\0') {
         if (*tempPath == '|' || *tempPath == '\0') {
             uint32_t strlen = tempPath - start;
-            resolvedPath[i] = (char*)malloc((strlen + 1) * sizeof(char));
-            strncpy(resolvedPath[i], start, strlen);
-            resolvedPath[i][strlen] = '\0'; // Null-terminate the string
+            resolvedPaths[i] = (char*)malloc((strlen + 1) * sizeof(char));
+            strncpy(resolvedPaths[i], start, strlen);
+            resolvedPaths[i][strlen] = '\0'; // Null-terminate the string
             start = tempPath + 1;
             i++;
         }
         //tempPath++;
     }
-
-    return (Path){resolvedPath,depth, driveId};
+    Path* resolvedPath = (Path*) malloc(sizeof(Path));
+    resolvedPath->driveId = driveId;
+    resolvedPath->path = resolvedPaths;
+    resolvedPath->depth = depth;
+    return resolvedPath;
 }
 
-void destroyPath(Path path){
-//    for (int i = 0; i <= path.depth; ++i) {
-//        free(path.path[i]);
-//    }
+void destroyPath(Path* path){
+    for (int i = 0; i < path->depth + 1; ++i) {
+        free(path->path[i]);
+    }
+    free(path);
 }
 
+void destroyMetaData(FileMetadata* metadata){
+    free(metadata->name);
+    free(metadata);
+}
 // Figure this one out yourself nerds
 
 char* extractName(char* path){

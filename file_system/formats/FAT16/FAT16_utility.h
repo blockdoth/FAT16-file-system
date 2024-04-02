@@ -26,6 +26,7 @@ FS_STATUS_CODE clearSectors(FormattedVolume* self, sector_ptr startSector, uint3
 
 FS_STATUS_CODE
 writeFileEntry(FormattedVolume *self, FAT16File fileEntry, cluster_ptr entryTable);
+FS_STATUS_CODE updateFileEntry(FormattedVolume* self, FAT16File fileEntry, cluster_ptr entryTable);
 FAT16File readFileEntry(FormattedVolume* self, sector_ptr tableStart, uint32_t index);
 //FS_STATUS_CODE updateEntry(FormattedVolume* self, sector_ptr entryTable, FAT16File fat16File);
 FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *name, bool lookingForDir);
@@ -35,12 +36,12 @@ FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, void *nextSect
 uint16_t readFATS(FormattedVolume* self, uint16_t index);
 
 // === Resolving ===
-sector_ptr resolveFileTable(FormattedVolume *self, Path path);
+sector_ptr resolveFileTable(FormattedVolume *self, Path* path);
 sector_ptr findFreeClusterInFAT(FormattedVolume* self);
 FAT16File findEntryInTable(FormattedVolume *self, cluster_ptr entryTable, char* name);
 Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name);
 Entry findFreeEntry(FormattedVolume* self, cluster_ptr entryTable);
-Path parsePath(char* path);
+Path* parsePath(char* path);
 FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, cluster_ptr entryTable, char* name, bool lookingForDir);
 
 // === Conversions ===

@@ -62,8 +62,6 @@ sector_ptr findFreeClusterInFAT(FormattedVolume* self){
         for (int i = 0; i < self->info->FAT16.bytesPerSector; i+=2) {
             entry = *(sector_ptr*) (sector + i);
             if(entry == 0x0000 || entry == 0xFFFE){
-                uint16_t dirty = 0xFFFF;
-                updateSector(self, currentSector,&dirty, 2, i);
                 break;
             }
             freeSector++;
@@ -76,10 +74,20 @@ sector_ptr findFreeClusterInFAT(FormattedVolume* self){
 }
 
 
+FS_STATUS_CODE updateFileEntry(FormattedVolume* self, FAT16File fileEntry, cluster_ptr entryTable){
+    Entry entry = findEntry(self, entryTable, fileEntry.name);
+    free(entry.sector);
+    return updateSector(self,entry.sectorPtr, &fileEntry, FAT16_ENTRY_SIZE, entry.inSectorOffset);
+}
+
+
+
 FS_STATUS_CODE writeFileEntry(FormattedVolume* self, FAT16File fileEntry, cluster_ptr entryTable) {
     Entry entry = findFreeEntry(self, entryTable);
     memcpy(entry.sector + entry.inSectorOffset, &fileEntry, sizeof(fileEntry));
-    return writeSector(self,entry.sectorPtr, entry.sector, self->info->FAT16.bytesPerSector);
+    FS_STATUS_CODE statusCode = writeSector(self,entry.sectorPtr, entry.sector, self->info->FAT16.bytesPerSector);
+    free(entry.sector);
+    return statusCode;
 }
 
 // tableStart => Cluster address of entry table
@@ -106,6 +114,7 @@ FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *
         }
     }
     FAT16File fileEntry = *(FAT16File*) (entry.sector + entry.inSectorOffset);
+    free(entry.sector);
 
     if(isDir(fileEntry) == lookingForDir){
         #ifdef DEBUG_FAT16
@@ -187,17 +196,17 @@ FS_STATUS_CODE deleteFATS(FormattedVolume* self, sector_ptr index){
 
 
 
-sector_ptr resolveFileTable(FormattedVolume *self, Path path) {
+sector_ptr resolveFileTable(FormattedVolume *self, Path* path) {
     sector_ptr entryTable = self->info->FAT16.rootSectionStart;
 
     FAT16File entry;
-    for(int i = 0; i < path.depth;i++){
-        entry = findEntryInTable(self, entryTable, path.path[i]);
+    for(int i = 0; i < path->depth;i++){
+        entry = findEntryInTable(self, entryTable, path->path[i]);
         entryTable = entry.fileClusterStart;
         if(entry.name[0] == 0){
             break;
         }
-        if(strcmp((char*)entry.name, path.path[i]) != 0){
+        if(strcmp((char*)entry.name, path->path[i]) != 0){
             #ifdef DEBUG_FAT16
             printf("ERROR: %s does not exist\n", entry.name);
             #endif
@@ -246,10 +255,9 @@ Entry findFreeEntry(FormattedVolume* self, cluster_ptr entryTable){
     };
 }
 
-
 Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name){
     FAT16File entry;
-    void* sector;
+    char* sector;
 
     uint32_t maxEntries = calculateMaxEntries(self, entryTable); // TODO remove this maybe
     sector_ptr currentSector = entryTable;

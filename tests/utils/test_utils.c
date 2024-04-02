@@ -8,6 +8,7 @@ char* randomString(uint32_t length){
     for (int i = 0; i < length; i++) {
         randomName[i] = chars[rand() % charsLength];
     }
+    randomName[length] = '\0';
     return randomName;
 }
 

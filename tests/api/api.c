@@ -14,9 +14,10 @@ void setupFormattedVolume(){
 
 void formatVolumeTest(){
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB/4);
-    assert_int_equals(fs_format(raw_volume, FAT16, DRIVE_R), FS_SUCCES);
+    FS_STATUS_CODE statusCode = fs_format(raw_volume, FAT16, DRIVE_R);
+    assert_int_equals(statusCode, FS_SUCCES);
+    fs_destroy(DRIVE_R);
 }
-
 
 void makeFilesFlat(){
     setupFormattedVolume();
@@ -27,6 +28,7 @@ void makeFilesFlat(){
         strcpy(name, prefix);
         char* fileName = randomString(10);
         strcpy(name + 3, fileName);
+        free(fileName);
         name[13] = '\0';
         paths[i] = strdup(name);
         uint32_t fileSize = rand() % (512 * 5); // BytesPerSector * SectorsPerCluster * Magic
@@ -35,7 +37,7 @@ void makeFilesFlat(){
         free(file);
     }
 
-    char* tree = fs_get_string("#R|");
+    char* tree = fs_get_string("#R");
     printf("%s\n",tree);
     for (int i = 0; i < MAX_NOT_NESTED_FILES; i++) {
         assert_true(fs_file_exists(paths[i]) == FS_SUCCES);
@@ -54,6 +56,7 @@ void makeDirsFlat(){
         strcpy(name, prefix);
         char* fileName = randomString(10);
         strcpy(name + 3, fileName);
+        free(fileName);
         name[13] = '\0';
         paths[i] = strdup(name);
         fs_create_dir(name);
@@ -77,6 +80,7 @@ void makeDirsNested(){
         path[writePointer++] = '|';
         char* fileName = randomString(10);
         strcpy(&path[writePointer], fileName);
+        free(fileName);
         writePointer += 10;
         path[writePointer] = '\0';
         fs_create_dir(path);
@@ -104,6 +108,7 @@ void makeMultipleNestedDirs(){
         for (int j = 0; j < MAX_NESTED_FILES; j++) {
             char* fileName = randomString(10);
             strcpy(&path[writePointer], fileName);
+            free(fileName);
             path[writePointer + 11] = '\0';
             fs_create_dir(path);
             paths[path_pointer++] = strdup(path);
@@ -122,31 +127,37 @@ void makeMultipleNestedDirs(){
 
 void smallReadWrite(){
     setupFormattedVolume();
-    char* data = randomString(SECTOR_SIZE);
-    fs_create_file("#R|small", data, SECTOR_SIZE);
+    uint32_t dataSize = SECTOR_SIZE;
+    char* data = randomString(dataSize);
+    fs_create_file("#R|small", data, dataSize);
     char* returnedFile = fs_read_file("#R|small");
-    assert_mem_equals(returnedFile, data, SECTOR_SIZE);
+    assert_mem_equals(returnedFile, data, dataSize);
+    free(returnedFile);
     free(data);
     fs_destroy(DRIVE_R);
 }
 
 void biggerReadWrite(){
     setupFormattedVolume();
-    char* data = randomString(SECTOR_SIZE * SECTORS_PER_CLUSTER);
-    fs_create_file("#R|small", data, SECTOR_SIZE * SECTORS_PER_CLUSTER);
+    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT;
+    char* data = randomString(dataSize);
+    fs_create_file("#R|small", data, dataSize);
     char* returnedFile = fs_read_file("#R|small");
-    assert_mem_equals(returnedFile, data, SECTOR_SIZE * SECTORS_PER_CLUSTER);
+    assert_mem_equals(returnedFile, data, dataSize);
+    free(returnedFile);
     free(data);
     fs_destroy(DRIVE_R);
 }
 
 void bigReadWrite(){
     setupFormattedVolume();
-    char* data = randomString(SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
-    fs_create_file("#R|small", data, SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
+    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT;
+    char* data = randomString(dataSize);
+    fs_create_file("#R|small", data, dataSize);
     char* returnedFile = fs_read_file("#R|small");
-    memCompare(returnedFile, data, SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
-    assert_mem_equals(returnedFile, data, SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
+    memCompare(returnedFile, data, dataSize);
+    assert_mem_equals(returnedFile, data, dataSize);
+    free(returnedFile);
     free(data);
     fs_destroy(DRIVE_R);
 }
@@ -154,33 +165,53 @@ void bigReadWrite(){
 
 void smallExpand(){
     setupFormattedVolume();
-    char* data = randomString(SECTOR_SIZE);
-    fs_create_file("#R|small", data, SECTOR_SIZE);
-
+    uint32_t dataSize = 10;
+    char* initialData = randomString(dataSize);
+    char* expandedData = randomString(dataSize);
+    initialData = realloc(initialData,2 * dataSize);
+    fs_create_file("#R|small", initialData, dataSize);
+    fs_expand_file("#R|small", expandedData, dataSize);
     char* returnedFile = fs_read_file("#R|small");
-    assert_mem_equals(returnedFile, data, SECTOR_SIZE);
-    free(data);
+    strcat(initialData, expandedData);
+    assert_mem_equals(returnedFile, initialData, 2 * dataSize);
+    free(returnedFile);
+    free(initialData);
+    free(expandedData);
     fs_destroy(DRIVE_R);
 }
 
 void biggerExpand(){
     setupFormattedVolume();
-    char* data = randomString(SECTOR_SIZE * SECTORS_PER_CLUSTER);
-    fs_create_file("#R|small", data, SECTOR_SIZE * SECTORS_PER_CLUSTER);
+    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER - 1;
+    char* initialData = randomString(dataSize);
+    char* expandedData = randomString(dataSize);
+    initialData = realloc(initialData,2 * dataSize);
+    strcat(initialData, expandedData);
+    fs_create_file("#R|small", initialData, dataSize);
+    fs_expand_file("#R|small", expandedData, dataSize);
     char* returnedFile = fs_read_file("#R|small");
-    assert_mem_equals(returnedFile, data, SECTOR_SIZE * SECTORS_PER_CLUSTER);
-    free(data);
+    assert_mem_equals(returnedFile, initialData, 2 * dataSize);
+    free(returnedFile);
+    free(initialData);
+    free(expandedData);
     fs_destroy(DRIVE_R);
 }
 
 void bigExpand(){
     setupFormattedVolume();
-    char* data = randomString(SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
-    fs_create_file("#R|small", data, SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
+    uint32_t dataSize = SECTOR_SIZE * SECTORS_PER_CLUSTER;
+    char* initialData = randomString(dataSize);
+    char* expandedData = randomString(dataSize);
+    initialData = realloc(initialData,2 * dataSize);
+    strcat(initialData, expandedData);
+    fs_create_file("#R|small", initialData, dataSize);
+    fs_expand_file("#R|small", expandedData, dataSize);
     char* returnedFile = fs_read_file("#R|small");
-    memCompare(returnedFile, data, SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
-    assert_mem_equals(returnedFile, data, SECTOR_SIZE * SECTORS_PER_CLUSTER * CLUSTER_COUNT);
-    free(data);
+    memCompare(returnedFile, initialData, 2 * dataSize);
+    assert_mem_equals(returnedFile, initialData, 2 * dataSize);
+    free(returnedFile);
+    free(initialData);
+    free(expandedData);
     fs_destroy(DRIVE_R);
 }
 

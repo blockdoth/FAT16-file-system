@@ -14,7 +14,7 @@ void fs_destroy(DriveID driveID);
 FS_STATUS_CODE fs_file_exists(char* path);
 FS_STATUS_CODE fs_create_file(char* path, void* file_data, uint32_t file_size);
 uint32_t fs_update_file(char* path, void* data, uint32_t new_file_size, uint32_t offset);
-uint32_t fs_expand_file(char* path, void* data, uint32_t new_file_size);
+uint32_t fs_expand_file(char* path, void* newData, uint32_t newDataSize);
 void* fs_read_file(char* path);
 void* fs_read_file_section(char* path, uint32_t offset, uint32_t size);
 FS_STATUS_CODE fs_delete_file(char* path);
