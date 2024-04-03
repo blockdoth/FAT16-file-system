@@ -66,6 +66,7 @@ typedef struct FormattedVolume {
     FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path* path);
     bool (*isDir)(struct FormattedVolume* self, Path* path);
     char* (*toString)(struct FormattedVolume* self);
+    FS_STATUS_CODE (*destroy)(struct FormattedVolume* self);
 } FormattedVolume;
 
 
@@ -97,6 +98,7 @@ FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path* path);
 FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path* path);
 char* FAT16ToTreeString(FormattedVolume* self);
 bool FAT16IsDir(FormattedVolume* self, Path* path);
+FS_STATUS_CODE FAT16Destroy(FormattedVolume* self);
 
 
 

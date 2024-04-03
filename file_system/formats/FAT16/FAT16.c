@@ -19,6 +19,8 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInf
     formattedVolume->deleteFile = FAT16DeleteFile;
     formattedVolume->isDir = FAT16IsDir;
     formattedVolume->toString = FAT16ToTreeString;
+    formattedVolume->destroy = FAT16Destroy;
+    initCache(formattedVolume->info->FAT16.bytesPerSector);
     return formattedVolume;
 }
 FormattedVolume *formatFAT16Volume(RawVolume *volume, FAT16Config fat16Config) {
@@ -345,4 +347,10 @@ bool FAT16IsDir(FormattedVolume *self, Path* path) {
 }
 char* FAT16ToTreeString(FormattedVolume* self){
     return printTreeToString(self);
+}
+
+FS_STATUS_CODE FAT16Destroy(FormattedVolume *self) {
+    self->rawVolume->destroy(self->rawVolume);
+    destroyCache();
+    return FS_SUCCES;
 }

@@ -2,12 +2,6 @@
 
 
 
-FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size) {
-    if(size > self->info->FAT16.bytesPerSector){
-        return FS_OUT_OF_BOUNDS;
-    }
-    return self->rawVolume->write(self->rawVolume, data,sector * self->info->FAT16.bytesPerSector, size);
-}
 
 FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size) {
     if(size > self->info->FAT16.bytesPerSector){
@@ -17,7 +11,6 @@ FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, se
     return self->rawVolume->write(self->rawVolume, data,
                                   adjustedAddress, size);
 }
-
 
 void writeAlignedSectors(FormattedVolume *self, void *newData, uint32_t bytesLeftToWrite, uint32_t currentDataPointer, sector_ptr currentCluster) {
     while (bytesLeftToWrite > 0){
@@ -45,9 +38,6 @@ void writeAlignedSectors(FormattedVolume *self, void *newData, uint32_t bytesLef
 }
 
 
-void* readSector(FormattedVolume* self, sector_ptr sector){
-    return self->rawVolume->read(self->rawVolume, sector * self->info->FAT16.bytesPerSector, self->info->FAT16.bytesPerSector);
-}
 
 
 void *readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector) {
@@ -180,13 +170,11 @@ FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *
         deleteFATS(self, fileEntry.fileClusterStart);
         updateSector(self, entry.sectorPtr, &fileEntry, sizeof(FAT16File), entry.inSectorOffset);
         return FS_SUCCES;
-    } else{
-        if(lookingForDir){
-            return FS_SOUGHT_DIR_FOUND_FILE;
-        } else{
-            return FS_SOUGHT_FILE_FOUND_DIR;
-        }
     }
+    if(lookingForDir){
+        return FS_SOUGHT_DIR_FOUND_FILE;
+    }
+    return FS_SOUGHT_FILE_FOUND_DIR;
 }
 
 // nextSector => Cluster address of next entry
@@ -205,8 +193,7 @@ uint16_t readFATS(FormattedVolume* self, uint16_t index){
 
     Sector sectorFAT1 = readSector(self,self->info->FAT16.FAT1Start + sectorOffset);
     Sector sectorFAT2 = readSector(self,self->info->FAT16.FAT2Start + sectorOffset);
-    Sector t = sectorFAT1 + offsetInSector;
-    uint16_t FAT1 = *(uint16_t*) (t); // Directly cast from sector to FAT entry
+    uint16_t FAT1 = *(uint16_t*) (sectorFAT1 + offsetInSector); // Directly cast from sector to FAT entry
     uint16_t FAT2 = *(uint16_t*) (sectorFAT2 + offsetInSector);
 
     free(sectorFAT1);
@@ -217,7 +204,6 @@ uint16_t readFATS(FormattedVolume* self, uint16_t index){
     return FAT1;
 }
 FS_STATUS_CODE deleteFATS(FormattedVolume* self, sector_ptr index){
-    uint16_t freeEntry = swapEndianness16Bit(0xFFFE); // Mark as deleted, not in FAT standard, but for debugging
     FS_STATUS_CODE fat1;
     FS_STATUS_CODE fat2;
 
@@ -233,6 +219,7 @@ FS_STATUS_CODE deleteFATS(FormattedVolume* self, sector_ptr index){
             }
 
             uint32_t offsetInSector = (currentEntry % self->info->FAT16.bytesPerSector) * 2;
+            uint16_t freeEntry = FAT16_EOF;
             fat1 = updateSector(self,self->info->FAT16.FAT1Start + sectorOffset,&freeEntry, 2, offsetInSector);
             fat2 = updateSector(self,self->info->FAT16.FAT2Start + sectorOffset,&freeEntry, 2, offsetInSector);
 
@@ -291,7 +278,7 @@ Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name){
         for (offset = 0; offset * FAT16_ENTRY_SIZE < self->info->FAT16.bytesPerSector && entriesRead < maxEntries; offset++) {
             entry = *(FAT16File*) (sector + offset * FAT16_ENTRY_SIZE);
             entriesRead++;
-            if(entry.name == 0x00){
+            if(entry.name[0] == 0x00){
                 entriesRead = -1; // Break out of while loop
                 break;
             }
@@ -333,10 +320,10 @@ FAT16File findEntryInTable(FormattedVolume *self, cluster_ptr entryTable, char *
 
 sector_ptr findSecondToLastCluster(FormattedVolume *self, sector_ptr fileClusterStart) {
     sector_ptr prevPrevCluster;
-    do{ // Traversing the linkedish list
+    do{ // Traversing the linkedish list, returning the link before the final one
         prevPrevCluster = fileClusterStart;
         fileClusterStart = readFATS(self, fileClusterStart - self->info->FAT16.dataSectionStart);
-    }while(fileClusterStart != FAT16_EOF);
+    } while(fileClusterStart != FAT16_EOF);
     fileClusterStart = prevPrevCluster;
     return fileClusterStart;
 }
@@ -353,6 +340,12 @@ uint32_t calculateMaxEntries(FormattedVolume* self, sector_ptr entryTable){
 
 FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, cluster_ptr entryTable, char* name, bool lookingForDir){
     FAT16File entry = findEntryInTable(self, entryTable, name);
+    if(entry.reserved == 1){
+        if(lookingForDir){
+            return FS_DIRECTORY_NOT_FOUND;
+        }
+        return FS_FILE_NOT_FOUND;
+    }
     if(strcmp(entry.name, name) == 0){
         if(isDir(entry) == lookingForDir){
             return FS_SUCCES;
@@ -360,9 +353,8 @@ FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, cluster_ptr entryTabl
     }
     if(lookingForDir){
         return FS_DIRECTORY_NOT_FOUND;
-    }else{
-        return FS_FILE_NOT_FOUND;
     }
+    return FS_FILE_NOT_FOUND;
 }
 
 FAT16File convertMetadataToFAT16File(FileMetadata *fileMetadata){
@@ -452,7 +444,6 @@ FATVolumeInfo* initFATVolumeInfo(BootSector bootSector) {
     volumeInfo->bytesPerCluster = bootSector.sectorsPerCluster * bootSector.bytesPerSector;
     return volumeInfo;
 }
-
 
 
 FS_STATUS_CODE checkFAT16Compatible(RawVolume *raw_volume) {

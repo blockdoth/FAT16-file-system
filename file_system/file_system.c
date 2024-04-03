@@ -14,7 +14,7 @@ FS_STATUS_CODE fs_format(RawVolume *raw_volume, FormatSpecifier formatSpecifier,
 
 void fs_destroy(DriveID driveID) {
     FormattedVolume* currentDrive = drives[driveID];
-    currentDrive->rawVolume->destroy(currentDrive->rawVolume);
+    currentDrive->destroy(currentDrive);
     free(currentDrive->info);
     free(currentDrive);
 }

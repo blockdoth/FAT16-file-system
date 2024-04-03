@@ -1,6 +1,7 @@
 #ifndef FILE_SYSTEM_FAT16_UTILITY_H
 #define FILE_SYSTEM_FAT16_UTILITY_H
 #include "FAT16.h"
+#include "FAT16_IO.h"
 
 #include <string.h>
 #include <malloc.h>
@@ -13,16 +14,12 @@ typedef struct Entry {
 } Entry;
 
 // === IO operations ===
-FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
 FS_STATUS_CODE updateSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size, uint32_t offset);
 FS_STATUS_CODE updateClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size, uint32_t offset);
-FS_STATUS_CODE writeDataSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
 FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size);
 void writeAlignedSectors(FormattedVolume *self, void *newData, uint32_t bytesLeftToWrite, uint32_t currentDataPointer,
                          sector_ptr currentCluster);
 
-void* readSector(FormattedVolume* self, sector_ptr sector);
-void* readSectorSize(FormattedVolume* self, sector_ptr sector, uint32_t size);
 void* readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector);
 FS_STATUS_CODE clearSectors(FormattedVolume* self, sector_ptr startSector, uint32_t count);
 
