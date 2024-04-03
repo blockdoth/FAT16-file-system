@@ -64,6 +64,7 @@ typedef struct FormattedVolume {
     uint32_t (*expandFile)(struct FormattedVolume* self, Path* path, void* fileData, uint32_t dataSize);
     FS_STATUS_CODE (*deleteDir)(struct FormattedVolume *self, Path* path);
     FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path* path);
+    bool (*isDir)(struct FormattedVolume* self, Path* path);
     char* (*toString)(struct FormattedVolume* self);
 } FormattedVolume;
 
@@ -95,16 +96,7 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
 FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path* path);
 FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path* path);
 char* FAT16ToTreeString(FormattedVolume* self);
-
-// Supported operations
-
-// │ Operation │  Files  │ Directories  │
-// ├───────────┼─────────┼──────────────┤
-// │ Finding   │   [X]   │     [X]      │
-// │ Reading   │   [X]   │     [X]      │
-// │ Writing   │   [X]   │     [X]      │
-// │ Updating  │   [ ]   │     [ ]      │
-
+bool FAT16IsDir(FormattedVolume* self, Path* path);
 
 
 

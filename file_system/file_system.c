@@ -159,7 +159,7 @@ FS_STATUS_CODE fs_delete_file(char* path){
 
 
 FS_STATUS_CODE checkValidPath(char* path){
-    if(path[0] != '#' || path[0] == '\0'){
+    if(path[0] != '#'){
         return FS_INVALID_PATH;
     }
     path++;
@@ -171,6 +171,17 @@ FS_STATUS_CODE checkValidPath(char* path){
         default:
             return FS_INVALID_PATH;
     }
+}
+
+bool fs_is_dir(char* path){
+    if(!checkValidPath(path)){
+        return FS_INVALID_PATH;
+    }
+    Path* resolvedPath = parsePath(path);
+    FormattedVolume* currentDrive = drives[resolvedPath->driveId];
+    bool status = currentDrive->isDir(currentDrive, resolvedPath);
+    destroyPath(resolvedPath);
+    return status;
 }
 
 char* fs_get_string(char* path){
@@ -240,6 +251,7 @@ void destroyPath(Path* path){
     for (int i = 0; i < path->depth + 1; ++i) {
         free(path->path[i]);
     }
+    free(path->path);
     free(path);
 }
 

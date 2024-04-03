@@ -3,8 +3,6 @@
 #include "FAT16_utility.h"
 
 
-
-
 FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInfo) {
     FormattedVolume* formattedVolume = (FormattedVolume*)malloc(sizeof(FormattedVolume));
     formattedVolume->rawVolume = volume;
@@ -19,6 +17,7 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInf
     formattedVolume->expandFile = FAT16ExpandFile;
     formattedVolume->deleteDir = FAT16DeleteDir;
     formattedVolume->deleteFile = FAT16DeleteFile;
+    formattedVolume->isDir = FAT16IsDir;
     formattedVolume->toString = FAT16ToTreeString;
     return formattedVolume;
 }
@@ -189,7 +188,8 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
     // Writes the rest like normal
     if(bytesLeftToWrite > 0){
         // Updates the tail entry of the FAT linked list to point to the next entry
-        writeFATS(self,findSecondToLastCluster(self, fat16File.fileClusterStart) - self->info->FAT16.dataSectionStart , currentCluster);
+        writeFATS(self,findSecondToLastCluster(self, fat16File.fileClusterStart) - self->info->FAT16.dataSectionStart,
+                  findFreeClusterInFAT(self));
         writeAlignedSectors(self, newData, bytesLeftToWrite, currentDataPointer, findFreeClusterInFAT(self));
     }
 
@@ -244,7 +244,7 @@ void* FAT16ReadFile(FormattedVolume* self, Path* path) {
     uint16_t currentCluster = fat16File.fileClusterStart;
     uint32_t bytesLeftToRead = fat16File.fileSize;
     uint16_t readSize = self->info->FAT16.bytesPerSector;
-    do{
+    do{ // Do while loop my beloved
         uint8_t sectorInCluster = 0;
         while(bytesLeftToRead > 0 && sectorInCluster < self->info->FAT16.sectorsPerCluster){
             if(bytesLeftToRead < self->info->FAT16.bytesPerSector){
@@ -277,7 +277,6 @@ void* FAT16ReadFileSection(FormattedVolume* self, Path* path, uint32_t offset, u
     uint32_t dataPointer = 0;
 
     uint32_t offsetInSector = offset % self->info->FAT16.bytesPerSector;
-    uint32_t offsetInCluster = (offset / self->info->FAT16.bytesPerSector) % self->info->FAT16.sectorsPerCluster;
     uint32_t currentCluster = fat16File.fileClusterStart + (offset / self->info->FAT16.bytesPerCluster);
     uint8_t sectorInCluster = (offset % self->info->FAT16.bytesPerCluster) / self->info->FAT16.bytesPerSector;
 
@@ -335,6 +334,14 @@ FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path* path) {
     printTree(self);
     #endif
     return statusCode;
+}
+
+bool FAT16IsDir(FormattedVolume *self, Path* path) {
+    sector_ptr entryTable = resolveFileTable(self, path);
+    char* name = path->path[path->depth];
+    FAT16File fileMetadata = findEntryInTable(self, entryTable, name);
+
+    return fileMetadata.attributes && ATTR_DIRECTORY;
 }
 char* FAT16ToTreeString(FormattedVolume* self){
     return printTreeToString(self);

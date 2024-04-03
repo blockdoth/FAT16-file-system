@@ -4,7 +4,7 @@
 char* randomString(uint32_t length){
     char* chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     uint8_t charsLength = 52;
-    char* randomName = (char*) malloc(length);
+    char* randomName = (char*) malloc(length + 1);
     for (int i = 0; i < length; i++) {
         randomName[i] = chars[rand() % charsLength];
     }
