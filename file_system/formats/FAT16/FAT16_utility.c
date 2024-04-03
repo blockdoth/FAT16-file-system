@@ -19,6 +19,32 @@ FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, se
 }
 
 
+void writeAlignedSectors(FormattedVolume *self, void *newData, uint32_t bytesLeftToWrite, uint32_t currentDataPointer, sector_ptr currentCluster) {
+    while (bytesLeftToWrite > 0){
+        uint32_t sectorInCluster = 0;
+        uint32_t writeSize = self->info->FAT16.bytesPerSector;
+        while(bytesLeftToWrite > 0 && sectorInCluster < self->info->FAT16.sectorsPerCluster){
+            if(bytesLeftToWrite < self->info->FAT16.bytesPerSector){
+                writeSize = bytesLeftToWrite; // Prevent unwanted data being written
+            }
+            writeClusterSector(self, currentCluster, sectorInCluster,newData + currentDataPointer, writeSize);
+            bytesLeftToWrite -= writeSize;
+            currentDataPointer += writeSize;
+            sectorInCluster++;
+        }
+        cluster_ptr prevCluster = currentCluster;
+        writeFATS(self,prevCluster - self->info->FAT16.dataSectionStart , FAT16_EOF);
+        // ^ Pre-marks the entry as EOF so we get a new one when calling findFreeClusterInFAT(),
+        // gets overwritten immediately
+        currentCluster = findFreeClusterInFAT(self);
+        if(bytesLeftToWrite == 0){
+            break;
+        }
+        writeFATS(self,prevCluster - self->info->FAT16.dataSectionStart, currentCluster);
+    }
+}
+
+
 void* readSector(FormattedVolume* self, sector_ptr sector){
     return self->rawVolume->read(self->rawVolume, sector * self->info->FAT16.bytesPerSector, self->info->FAT16.bytesPerSector);
 }
@@ -135,12 +161,12 @@ FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *
 }
 
 // nextSector => Cluster address of next entry
-FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, void *nextSector){
+FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, sector_ptr nextSector){
     uint32_t sectorOffset = index / self->info->FAT16.bytesPerSector;
     uint32_t offsetInSector = (index % self->info->FAT16.bytesPerSector) * 2; // Times 2 because each entry is 2 bytes
 
-    FS_STATUS_CODE fat1 = updateSector(self, self->info->FAT16.FAT1Start + sectorOffset, nextSector, 2, offsetInSector);
-    FS_STATUS_CODE fat2 = updateSector(self, self->info->FAT16.FAT2Start + sectorOffset, nextSector, 2, offsetInSector);
+    FS_STATUS_CODE fat1 = updateSector(self, self->info->FAT16.FAT1Start + sectorOffset, &nextSector, 2, offsetInSector);
+    FS_STATUS_CODE fat2 = updateSector(self, self->info->FAT16.FAT2Start + sectorOffset, &nextSector, 2, offsetInSector);
     return fat1 && fat2;
 }
 
@@ -307,6 +333,15 @@ FAT16File findEntryInTable(FormattedVolume *self, cluster_ptr entryTable, char *
     }
 }
 
+sector_ptr findSecondToLastCluster(FormattedVolume *self, sector_ptr fileClusterStart) {
+    sector_ptr prevPrevCluster;
+    do{ // Traversing the linkedish list
+        prevPrevCluster = fileClusterStart;
+        fileClusterStart = readFATS(self, fileClusterStart - self->info->FAT16.dataSectionStart);
+    }while(fileClusterStart != FAT16_EOF);
+    fileClusterStart = prevPrevCluster;
+    return fileClusterStart;
+}
 
 
 

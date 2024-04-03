@@ -47,3 +47,11 @@ bool memCompare(char* fileA, char* fileB, uint32_t size){
     }
     return true;
 }
+
+void mergeData(char *initialData, char *updatedData, uint32_t dataSize, uint32_t offset) {
+    for (int i = 0; i < dataSize; ++i) {
+        if(i >= offset){
+            initialData[i] = updatedData[i - offset];
+        }
+    }
+}

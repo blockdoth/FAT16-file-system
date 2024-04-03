@@ -195,13 +195,13 @@ void printFATTable(FormattedVolume* self){
                 printf("│ %u \t Bad Cluster\t │\n", i);
                 break;
             case 0xFFF8:
-                printf("│ %u \t Start of Cluster │\n", i);
+                printf("│ %u \t End of Cluster   │\n", i);
                 break;
             case 0xFFFE:
                 printf("│ %u \t Deleted Cluster  │\n", i);
                 break;
             case 0xFFFF:
-                printf("│ %u \t End of Cluster\t  │\n", i);
+                printf("│ %u \t idk look it up   │\n", i);
                 break;
             default:
                 if (entry >= 0x0001 && entry <= 0xFFEF) {

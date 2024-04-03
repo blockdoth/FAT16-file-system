@@ -116,7 +116,7 @@ uint32_t fs_expand_file(char* path, void* newData, uint32_t newDataSize){
 
 FileMetadata* initFile(char* path, uint32_t file_size){
     char* name = extractName(path);
-    FileMetadata* fileMetadata = (FormattedVolume*) malloc(sizeof(FileMetadata));
+    FileMetadata* fileMetadata = (FileMetadata*) malloc(sizeof(FileMetadata));
     fileMetadata->name = name;
     fileMetadata->fileSize = file_size;
     fileMetadata->read_only = 0;

@@ -18,6 +18,8 @@ FS_STATUS_CODE updateSector(FormattedVolume *self, sector_ptr sector, void *data
 FS_STATUS_CODE updateClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size, uint32_t offset);
 FS_STATUS_CODE writeDataSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
 FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size);
+void writeAlignedSectors(FormattedVolume *self, void *newData, uint32_t bytesLeftToWrite, uint32_t currentDataPointer,
+                         sector_ptr currentCluster);
 
 void* readSector(FormattedVolume* self, sector_ptr sector);
 void* readSectorSize(FormattedVolume* self, sector_ptr sector, uint32_t size);
@@ -32,7 +34,7 @@ FAT16File readFileEntry(FormattedVolume* self, sector_ptr tableStart, uint32_t i
 FS_STATUS_CODE deleteEntry(FormattedVolume *self, cluster_ptr entryTable, char *name, bool lookingForDir);
 FS_STATUS_CODE deleteFATS(FormattedVolume* self, sector_ptr index);
 
-FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, void *nextSector);
+FS_STATUS_CODE writeFATS(FormattedVolume* self, sector_ptr index, sector_ptr nextSector);
 uint16_t readFATS(FormattedVolume* self, uint16_t index);
 
 // === Resolving ===
@@ -41,6 +43,7 @@ sector_ptr findFreeClusterInFAT(FormattedVolume* self);
 FAT16File findEntryInTable(FormattedVolume *self, cluster_ptr entryTable, char* name);
 Entry findEntry(FormattedVolume* self, cluster_ptr entryTable, char* name);
 Entry findFreeEntry(FormattedVolume* self, cluster_ptr entryTable);
+sector_ptr findSecondToLastCluster(FormattedVolume *self, sector_ptr fileClusterStart);
 Path* parsePath(char* path);
 FS_STATUS_CODE checkNamingCollusion(FormattedVolume* self, cluster_ptr entryTable, char* name, bool lookingForDir);
 

@@ -23,5 +23,6 @@
 char* randomString(uint32_t length);
 char* generatePath();
 bool memCompare(char* fileA, char* fileB, uint32_t size);
+void mergeData(char *initialData, char *updatedData, uint32_t dataSize, uint32_t offset);
 
 #endif //FILE_SYSTEM_TEST_UTILS_H

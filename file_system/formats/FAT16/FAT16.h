@@ -15,6 +15,9 @@
 #define FAT16_ENTRY_SIZE 32
 #define FAT16_ENTRY_BASE_NAME_LENGTH 11
 
+#define FAT16_EOF 0xF8FF
+
+
 typedef struct BootSector {
     uint8_t jmpBoot[3];
     unsigned char OEM_Name[8];

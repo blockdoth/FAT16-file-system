@@ -89,7 +89,7 @@ void* FAT16ReadFile(FormattedVolume* self, Path* path);
 void* FAT16ReadFileSection(FormattedVolume* self, Path* path, uint32_t offset, uint32_t chunkSize);
 FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path* path);
 FS_STATUS_CODE FAT16CheckDir(FormattedVolume* self, Path* path);
-uint32_t FAT16UpdateFile(FormattedVolume* self, Path* path, void* fileData, uint32_t dataSize, uint32_t offset);
+uint32_t FAT16UpdateFile(FormattedVolume* self, Path* path, void* newData, uint32_t updatedDataSize, uint32_t offset);
 uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint32_t newDataSize);
 
 FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path* path);
