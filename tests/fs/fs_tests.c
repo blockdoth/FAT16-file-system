@@ -576,7 +576,6 @@ void bigUpdateOffsetSameSize(){
     fs_destroy(DRIVE_R);
 }
 
-
 void register_api_tests(){
     register_test(bigUpdateOffsetSameSize);
     register_test(bigUpdateNoOffsetIncreaseSize);

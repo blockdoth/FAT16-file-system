@@ -20,7 +20,7 @@ FormattedVolume *initFormattedVolume(RawVolume *volume, FATVolumeInfo* volumeInf
     formattedVolume->isDir = FAT16IsDir;
     formattedVolume->toString = FAT16ToTreeString;
     formattedVolume->destroy = FAT16Destroy;
-    initCache(formattedVolume->info->FAT16.bytesPerSector);
+    initCache(formattedVolume, MAX_PAGES_IN_CACHE);
     return formattedVolume;
 }
 FormattedVolume *formatFAT16Volume(RawVolume *volume, FAT16Config fat16Config) {
@@ -351,6 +351,6 @@ char* FAT16ToTreeString(FormattedVolume* self){
 
 FS_STATUS_CODE FAT16Destroy(FormattedVolume *self) {
     self->rawVolume->destroy(self->rawVolume);
-    destroyCache();
+    destroyCache(self);
     return FS_SUCCES;
 }

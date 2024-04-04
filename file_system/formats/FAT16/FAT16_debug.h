@@ -24,5 +24,5 @@ void printRootSectorShort(FormattedVolume* self);
 void printFAT16Layout(FormattedVolume *self);
 void printTree(FormattedVolume* self);
 char* printTreeToString(FormattedVolume* self);
-
+void printCache(FormattedVolume* self);
 #endif //FILE_SYSTEM_FAT16_DEBUG_H

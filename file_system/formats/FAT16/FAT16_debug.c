@@ -247,3 +247,21 @@ void printBootSector(BootSector* bs) {
     printf("│ Filesystem Type:\t  %.11s\t  │\n", bs->filesystemType);
     printf("└─────────────────────────────────────────┘\n");
 }
+
+#define PRINT_WIDTH 10
+void printCache(FormattedVolume* self) {
+    printf("┌─────────────────────────────────────────┐\n");
+    printf("│ Cache                                   │\n");
+    printf("├─────────────────────────────────────────┤\n");
+    for (int i = 0; i < self->cache.FAT16.size; ++i) {
+        FAT16CacheEntry entry = self->cache.FAT16.cache[i];
+        if(entry.age > 0){
+            printf("│%u ", entry.sectorPtr);
+            for (int j = 0; j < entry.age; ++j) {
+                printf("=");
+            }
+            printf("\t\t\t│\n");
+        }
+    }
+    printf("└─────────────────────────────────────────┘\n");
+}

@@ -47,13 +47,31 @@ typedef struct Path {
     DriveID driveId;
 } Path;
 
+
 typedef union {
     FATVolumeInfo FAT16;
 } VolumeInfo;
 
+typedef struct {
+    sector_ptr sectorPtr;
+    uint16_t age;
+    void* sector;
+} FAT16CacheEntry;
+
+typedef struct {
+    FAT16CacheEntry* cache;
+    uint32_t size;
+    uint32_t totalCacheHits;
+} FAT16Cache;
+
+typedef union{
+    FAT16Cache FAT16;
+} Cache;
+
 typedef struct FormattedVolume {
     RawVolume* rawVolume;
     VolumeInfo* info;
+    Cache cache;
     FS_STATUS_CODE (*createFile)(struct FormattedVolume* self, Path* path, FileMetadata* fileMetadata, void* fileData);
     FS_STATUS_CODE (*createDir)(struct FormattedVolume* self, Path* path, FileMetadata* fileMetadata);
     void* (*readFile)(struct FormattedVolume* self, Path* path);
