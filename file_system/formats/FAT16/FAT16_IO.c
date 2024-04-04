@@ -1,7 +1,7 @@
 #include "FAT16_IO.h"
 
 
-void initCache(FormattedVolume* self, uint32_t cacheSize) {
+void initCacheContinous(FormattedVolume* self, uint32_t cacheSize) {
     FAT16CacheEntry* entries = malloc(cacheSize * sizeof(FAT16CacheEntry));
     void* sectors = malloc(cacheSize * self->info->FAT16.bytesPerSector);
     for (int i = 0; i < cacheSize; ++i) {
@@ -12,8 +12,20 @@ void initCache(FormattedVolume* self, uint32_t cacheSize) {
     self->cache.FAT16 = (FAT16Cache){entries, cacheSize, 0};
 }
 
+void initCache(FormattedVolume* self, uint32_t cacheSize) {
+    FAT16CacheEntry* entries = (FAT16CacheEntry*) malloc(cacheSize * sizeof(FAT16CacheEntry));
+    for (int i = 0; i < cacheSize; ++i) {
+        entries[i] = (FAT16CacheEntry) {0,0, malloc(self->info->FAT16.bytesPerSector)};
+    }
+    self->cache.FAT16 = (FAT16Cache){entries, cacheSize, 0};
+}
+
 void destroyCache(FormattedVolume* self){
-    free(self->cache.FAT16.cache->sector);
+    //printf("Cache hits %u\n", self->cache.FAT16.totalCacheHits);
+    FAT16CacheEntry* cache = self->cache.FAT16.cache;
+    for (int i = 0; i < self->cache.FAT16.size; ++i) {
+        free(cache[i].sector);
+    }
     free(self->cache.FAT16.cache);
 }
 
@@ -36,6 +48,7 @@ void* findSectorInCache(FormattedVolume* self, sector_ptr sector){
         FAT16CacheEntry entry = cache[i];
         if(entry.sectorPtr == sector){
             entry.age++;
+            self->cache.FAT16.totalCacheHits++;
             return entry.sector;
         }
     }
@@ -45,11 +58,11 @@ void* findSectorInCache(FormattedVolume* self, sector_ptr sector){
 void invalidateSectorInCache(FormattedVolume* self, sector_ptr sectorPtr){
     FAT16CacheEntry* cache = self->cache.FAT16.cache;
     for (int i = 0; i < self->cache.FAT16.size; ++i) {
-        FAT16CacheEntry entry = cache[i];
-        if(entry.sectorPtr == sectorPtr){
-            entry.age = 0;
-            entry.sectorPtr = 0;
-            memset(entry.sector,0, self->info->FAT16.bytesPerSector);
+        FAT16CacheEntry* entry = &cache[i];
+        if(entry->sectorPtr == sectorPtr){
+            entry->age = 0;
+            entry->sectorPtr = 0;
+            memset(entry->sector,0, self->info->FAT16.bytesPerSector);
             return;
         }
     }
@@ -65,10 +78,10 @@ void insertSectorInCache(FormattedVolume* self, sector_ptr sectorPtr, void* sect
             leastHitEntryIndex = i;
         }
     }
-    FAT16CacheEntry cacheEntry = cache[leastHitEntryIndex];
-    cacheEntry.age = 1;
-    cacheEntry.sectorPtr = sectorPtr;
-    memcpy(cacheEntry.sector, sector, self->info->FAT16.bytesPerSector);
+    FAT16CacheEntry* cacheEntry = &cache[leastHitEntryIndex];
+    cacheEntry->age = 10;
+    cacheEntry->sectorPtr = sectorPtr;
+    memcpy(cacheEntry->sector, sector, self->info->FAT16.bytesPerSector);
 }
 
 
@@ -78,7 +91,6 @@ void* readSector(FormattedVolume* self, sector_ptr sector){
     if(foundSector != NULL){
         void* cachedSector = (void*) malloc(sectorSize);
         memcpy(cachedSector, foundSector, sectorSize);
-        self->cache.FAT16.totalCacheHits++;
         return cachedSector;
     } else{
         void* loadedSector = self->rawVolume->read(self->rawVolume, sector * sectorSize, sectorSize);

@@ -135,7 +135,7 @@ FileMetadata* initFile(char* path, uint32_t file_size){
     return fileMetadata;
 }
 
-FS_STATUS_CODE fs_delete_dir(char* path, bool recursive){
+FS_STATUS_CODE fs_delete_dir(char *path) {
     if(!checkValidPath(path)){
         return FS_INVALID_PATH;
     }

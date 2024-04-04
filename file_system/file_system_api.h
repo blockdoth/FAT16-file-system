@@ -35,7 +35,7 @@ FS_STATUS_CODE fs_delete_file(char* path);
 FS_STATUS_CODE fs_dir_exists(char* path);
 char* fs_get_string(char* path);
 FS_STATUS_CODE fs_create_dir(char* path);
-FS_STATUS_CODE fs_delete_dir(char* path, bool recursive);
+FS_STATUS_CODE fs_delete_dir(char *path);
 bool fs_is_dir(char* path);
 
 #endif //FILE_SYSTEM_API_H

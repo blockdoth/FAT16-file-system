@@ -48,7 +48,7 @@ int main() {
         printf("File %s stil exists\n", filePath);
     }
     char* dir = "#R|rootDirA|subDirA";
-    fs_delete_dir(dir, true);
+    fs_delete_dir(dir);
     if(!fs_dir_exists(dir)){
         printf("Dir %s has been deleted\n", dir);
     }else{
