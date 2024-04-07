@@ -88,6 +88,7 @@ void readSector(FormattedVolume *self, sector_ptr sector, void *buffer, uint32_t
         void* chunk = self->rawVolume->read(self->rawVolume, sector * sectorSize, sectorSize);
         insertSectorInCache(self, sector, chunk);
         memcpy(buffer, chunk, readSize);
+        free(chunk);
     }
 //    printf("reading from %u\n", sector * sectorSize);
 

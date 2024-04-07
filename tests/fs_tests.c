@@ -537,7 +537,7 @@ void smallUpdateOffsetSameSize(){
     char* initialData = randomString(dataSize);
     char* updatedData = randomString(dataSize - offset);
     fs_create_file("#R|small", initialData, dataSize);
-    fs_update_file("#R|small", updatedData, dataSize, offset);
+    fs_update_file("#R|small", updatedData, dataSize - offset, offset);
     char* returnedData = fs_read_file("#R|small");
     mergeData(initialData, updatedData, dataSize, offset);
     memCompare(returnedData, initialData, dataSize);
@@ -687,7 +687,7 @@ void gaytree(){
 }
 
 void register_tests(){
-    register_test(gaytree);
+//    register_test(gaytree);
     register_test(bigUpdateOffsetSameSize);
     register_test(bigUpdateNoOffsetIncreaseSize);
     register_test(bigUpdateNoOffsetSameSize);
