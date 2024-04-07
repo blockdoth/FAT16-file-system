@@ -74,25 +74,31 @@ void insertSectorInCache(FormattedVolume* self, sector_ptr sectorPtr, void* sect
     memcpy(cacheEntry->sector, sector, self->info->FAT16.bytesPerSector);
 }
 
-
-void* readSector(FormattedVolume* self, sector_ptr sector){
+// Read size should never be larger than bytesPerSector
+void readSector(FormattedVolume *self, sector_ptr sector, void *buffer, uint32_t readSize) {
     uint32_t sectorSize = self->info->FAT16.bytesPerSector;
+    if(readSize > sectorSize){
+        printf("Should not happen");
+        readSize = sectorSize;
+    }
     void* foundSector = findSectorInCache(self, sector);
     if(foundSector != NULL){
-        void* cachedSector = (void*) malloc(sectorSize);
-        memcpy(cachedSector, foundSector, sectorSize);
-        return cachedSector;
+        memcpy(buffer, foundSector, readSize);
     } else{
-        void* loadedSector = self->rawVolume->read(self->rawVolume, sector * sectorSize, sectorSize);
-        insertSectorInCache(self, sector, loadedSector);
-        return loadedSector;
+        void* chunk = self->rawVolume->read(self->rawVolume, sector * sectorSize, sectorSize);
+        insertSectorInCache(self, sector, chunk);
+        memcpy(buffer, chunk, readSize);
     }
+//    printf("reading from %u\n", sector * sectorSize);
+
 }
 // TODO add COW
 FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size) {
-    if(size > self->info->FAT16.bytesPerSector){
+    uint32_t sectorSize = self->info->FAT16.bytesPerSector;
+    if(size > sectorSize){
         return FS_OUT_OF_BOUNDS;
     }
+//    printf("writing to %u\n", sector * sectorSize);
     invalidateSectorInCache(self, sector);
-    return self->rawVolume->write(self->rawVolume, data,sector * self->info->FAT16.bytesPerSector, size);
+    return self->rawVolume->write(self->rawVolume, data, sector * sectorSize, size);
 }

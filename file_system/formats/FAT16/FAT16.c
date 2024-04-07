@@ -177,7 +177,7 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
         sectorInCluster++;
     }
 
-    //Fill up the rest of the half written cluster
+    //Fill up the empty part of the half written cluster
     writeSize = self->info->FAT16.bytesPerSector;
     while(sectorInCluster != 0 && sectorInCluster < self->info->FAT16.sectorsPerCluster && bytesLeftToWrite > 0){
         if(bytesLeftToWrite < self->info->FAT16.bytesPerSector){
@@ -253,9 +253,7 @@ void* FAT16ReadFile(FormattedVolume* self, Path* path) {
             if(bytesLeftToRead < self->info->FAT16.bytesPerSector){
                 readSize = bytesLeftToRead; // Prevent unwanted data being read
             }
-            void* chunk = readClusterSector(self, currentCluster, sectorInCluster); //TODO directly write from volume
-            memcpy(file + dataPointer, chunk, readSize);
-            free(chunk);
+            readClusterSector(self, currentCluster, sectorInCluster, file + dataPointer, readSize);
             sectorInCluster++;
             dataPointer += readSize;
             bytesLeftToRead -= readSize;
@@ -281,15 +279,26 @@ void* FAT16ReadFileSection(FormattedVolume* self, Path* path, uint32_t offset, u
     uint32_t bytesLeftToRead = chunkSize;
     uint16_t readSize = self->info->FAT16.bytesPerSector;
 
+    // Read the first sector with an offset
+    // Kinda unelegant but I couldnt make it work otherwise, without changing a lot elsewhere
+    // tech debt from when read function returned copies instead of writing to a buffer
+    if(bytesLeftToRead < self->info->FAT16.bytesPerSector){
+        readSize = bytesLeftToRead; // Prevent unwanted data being read
+    }
+    void* chunk = malloc(self->info->FAT16.bytesPerSector);
+    readClusterSector(self, currentCluster, sectorInCluster, chunk, self->info->FAT16.bytesPerSector);
+    memcpy(file + dataPointer, chunk + offsetInSector, readSize);
+    free(chunk);
+    sectorInCluster++;
+    dataPointer += readSize;
+    bytesLeftToRead -= readSize;
+
     do{
         while(bytesLeftToRead > 0 && sectorInCluster < self->info->FAT16.sectorsPerCluster){
             if(bytesLeftToRead < self->info->FAT16.bytesPerSector){
                 readSize = bytesLeftToRead; // Prevent unwanted data being read
             }
-            void* chunk = readClusterSector(self, currentCluster, sectorInCluster);
-            memcpy(file + dataPointer, chunk + offsetInSector, readSize);
-            free(chunk);
-            offsetInSector = 0; // Only rad with an offset for the first read, after that its aligned with sectors
+            readClusterSector(self, currentCluster, sectorInCluster, file + dataPointer, readSize);
             sectorInCluster++;
             dataPointer += readSize;
             bytesLeftToRead -= readSize;

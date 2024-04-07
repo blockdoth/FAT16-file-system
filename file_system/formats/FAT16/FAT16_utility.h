@@ -22,7 +22,7 @@ FS_STATUS_CODE updateSector(FormattedVolume *self, sector_ptr sector, void *data
 
 // Prevents unnecessary developer thunking
 FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size);
-void* readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector);
+void readClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *buffer, uint32_t readSize);
 FS_STATUS_CODE updateClusterSector(FormattedVolume *self, cluster_ptr cluster, sector_ptr sector, void *data, uint32_t size, uint32_t offset);
 
 // Zero's out the whole sector

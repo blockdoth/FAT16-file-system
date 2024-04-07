@@ -8,7 +8,7 @@
 #include "../file_system/common_types.h"
 #include "../file_system/formats/FAT16/FAT16_IO.h"
 
-#define MAX_NOT_NESTED_FILES 10
+#define MAX_NOT_NESTED_FILES 1
 #define MAX_NESTED_FILES 3
 #define SECTOR_SIZE 512
 #define SECTORS_PER_CLUSTER 64

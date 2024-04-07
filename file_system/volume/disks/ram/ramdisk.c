@@ -32,9 +32,10 @@ FS_STATUS_CODE ramdisk_write(RawVolume* self, void* sourceAddress, uint32_t dest
 }
 void* ramdisk_read(RawVolume* self, uint32_t sourceAddress, uint32_t size){
     if(bounds_check(self, sourceAddress, size)) return NULL;
-    uint32_t* source = (uint32_t*) (self->volumeData + sourceAddress);
 
+    uint32_t* source = (uint32_t*) (self->volumeData + sourceAddress);
     void* chunk = malloc(size);
+
     if(chunk == NULL){
         printf("ERROR:\t Failed to allocate memory for readFile\n");
         return NULL;

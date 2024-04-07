@@ -23,7 +23,7 @@ void invalidateSectorInCache(FormattedVolume* self, sector_ptr sectorPtr);
 FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size);
 
 // Reads a single sector, indexed by sector
-void* readSector(FormattedVolume* self, sector_ptr sector);
+void readSector(FormattedVolume *self, sector_ptr sector, void *buffer, uint32_t readSize);
 
 
 #endif //FILE_SYSTEM_FAT16_IO_H

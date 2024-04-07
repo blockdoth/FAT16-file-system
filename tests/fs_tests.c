@@ -382,6 +382,7 @@ void smallReadWriteSection(){
     char* data = randomString(dataSize);
     fs_create_file("#R|small", data, dataSize);
     char* returnedData = fs_read_file_section("#R|small", offset, chunkSize);
+    memCompare(returnedData,data + offset, chunkSize);
     assert_mem_equals(returnedData,data + offset, chunkSize);
     free(returnedData);
     free(data);
