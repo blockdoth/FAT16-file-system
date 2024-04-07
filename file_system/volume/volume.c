@@ -16,7 +16,7 @@ FS_STATUS_CODE bounds_check(RawVolume* self, uint32_t start_addr, uint32_t size)
 }
 
 
-// Initializes the correct Object based on the rawVolume type
+// Initializes the correct volume object based on the rawVolume type
 RawVolume* prep_volume(VOLUME_TYPE volumeType){
     switch (volumeType) {
         case RAM_DISK:

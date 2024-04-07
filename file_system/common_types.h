@@ -26,6 +26,7 @@ typedef enum FS_STATUS_CODE {
     FS_SOUGHT_FILE_FOUND_DIR = false,
     FS_SOUGHT_DIR_FOUND_FILE = false,
     FS_DELETION_FAILED = false,
+    FS_IS_FILE = false,
 } FS_STATUS_CODE;
 
 typedef enum DriveID {
@@ -36,8 +37,6 @@ typedef enum DriveID {
     // etc etc
 } DriveID; // IMPORTANT, keep in sync with the switch statement in parsePath
 
-#define maxDriveCount 2 // This value should be sizeof DriveID
-
-
+#define maxDriveCount 3 - 1 // This value should be sizeof DriveID
 
 #endif //FILE_SYSTEM_COMMON_TYPES_H

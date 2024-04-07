@@ -6,6 +6,7 @@
 #include "../../common_types.h"
 
 
+//#define DEBUG_VOLUME
 #define DEBUG_BUFFER_SIZE 50
 
 void allowtruncate(char buffer[DEBUG_BUFFER_SIZE], uint8_t* string, uint32_t dataSize);

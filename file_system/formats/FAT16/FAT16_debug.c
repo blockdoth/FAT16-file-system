@@ -23,7 +23,7 @@ void printRootSectorShort(FormattedVolume* self){
 
 
 // Colors list
-const char* colors[] = {
+char* colors[] = {
         RED,
         ORANGE,
         YELLOW,
@@ -32,20 +32,19 @@ const char* colors[] = {
         BLUE,
         PURPLE
 };
-const size_t colorsLength = sizeof(colors) / sizeof(colors[0]);
-size_t colorPointer = 1;
 
+size_t colorPointer = 1;
 
 
 char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix){
 
     char* color = colors[colorPointer];
-    size_t ansiLength = strlen(color) + strlen(RESET);
-    char* treeString = (char*) malloc(strlen(prefix) * sizeof(char*));
+    size_t ansiLength = strlen(color) + strlen(RESET) + 10;
+    char* treeString = (char*) malloc(strlen(prefix) + 1);
     strcpy(treeString, "");
     FAT16File entry;
     FAT16File nextEntry;
-
+    uint32_t colorsLength = sizeof(colors) / sizeof(colors[0]);
     for(uint32_t i = 0; i < self->info->FAT16.bytesPerCluster / FAT16_ENTRY_SIZE; i++) {
         entry = readFileEntry(self, tableStart, i);
         nextEntry = readFileEntry(self, tableStart, i + 1);
@@ -81,15 +80,19 @@ char* printTreeHelper(FormattedVolume* self, sector_ptr tableStart, char* prefix
             colorPointer = 0;
         }
 
-        uint32_t newTreeLength = (strlen(treeString) + strlen(prefix) + strlen(pipe) + strlen(entry.name) + ansiLength) * sizeof(char*);
-        treeString = realloc(treeString, newTreeLength + 1);
+        uint32_t newTreeLength = (strlen(treeString) + strlen(prefix) + strlen(pipe) + strlen(entry.name) + ansiLength);
+        treeString = realloc(treeString, newTreeLength);
+        //free(treeString);
         sprintf(treeString, "%s%s%s%s%s%s\n",treeString,prefix,pipe,colors[colorPointer],entry.name, RESET);
         if(entry.attributes == ATTR_DIRECTORY){
             char* childTree = printTreeHelper(self, entry.fileClusterStart, childPrefix);
             uint32_t childTreeLength = (strlen(treeString) + strlen(childTree)) * sizeof(char*);
             treeString = (char*)realloc(treeString,childTreeLength);
             strcat(treeString, childTree);
+            free(childTree);
         }
+        free(pipe);
+        free(pipePrefix);
         free(childPrefix);
     }
     return treeString;
@@ -101,6 +104,7 @@ char* printTreeToString(FormattedVolume* self){
     char* tree = printTreeHelper(self, self->info->FAT16.rootSectionStart, "");
     char* root = (char*) malloc( (ansiLength + strlen(tree) + 7) * sizeof (char*));
     sprintf(root,"%sRoot%s\n%s", color,  RESET, tree);
+    free(tree);
     return root;
 }
 
@@ -160,7 +164,7 @@ void printFAT16File(FAT16File *file) {
 }
 
 void printFAT16Layout(FormattedVolume *file) {
-    FATVolumeInfo* volumeInfo = file->info;
+    FATVolumeInfo* volumeInfo = (FATVolumeInfo*) file->info;
     printf("┌─────────────────────────────────────────┐\n");
     printf("│ FAT 16 layout                           │\n");
     printf("├─────────────────────────────────────────┤\n");
@@ -264,4 +268,20 @@ void printCache(FormattedVolume* self) {
         }
     }
     printf("└─────────────────────────────────────────┘\n");
+}
+
+
+void reportCacheUse(FormattedVolume* self){
+    uint32_t hits = self->cache.FAT16.cacheHits;
+    uint32_t misses = self->cache.FAT16.cacheMisses;
+    uint32_t total = hits + misses;
+    float ratio =  (((float) hits) / (float) total) * 100;
+    printf("┌─────────────────────────────────────────┐\n");
+    printf("│ Cache                                   │\n");
+    printf("├─────────────────────────────────────────┤\n");
+    printf("│ Hits   %u                               │\n", hits);
+    printf("│ Misses %u                               │\n", misses);
+    printf("│ Ratio  %.2f                             │\n", ratio);
+    printf("└─────────────────────────────────────────┘\n");
+
 }

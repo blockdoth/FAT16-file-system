@@ -8,23 +8,6 @@
 #include <string.h>
 #include <malloc.h>
 
-typedef struct FileMetadata {
-    char* name;
-    uint8_t read_only : 1;
-    uint8_t hidden : 1;
-    uint8_t system : 1;
-    uint8_t volume_id : 1;
-    uint8_t directory : 1;
-    uint8_t archive : 1;
-    uint8_t long_name : 1;
-    uint8_t creationTimeTenth;
-    uint16_t creationTime;
-    uint16_t creationDate;
-    uint16_t lastAccessedDate;
-    uint16_t timeOfLastWrite;
-    uint16_t dateOfLastWrite;
-    uint32_t fileSize;
-} FileMetadata;
 
 typedef struct FATVolumeInfo {
     sector_ptr FAT1Start;
@@ -61,7 +44,8 @@ typedef struct {
 typedef struct {
     FAT16CacheEntry* cache;
     uint32_t size;
-    uint32_t totalCacheHits;
+    uint32_t cacheHits;
+    uint32_t cacheMisses;
 } FAT16Cache;
 
 typedef union{
@@ -82,8 +66,10 @@ typedef struct FormattedVolume {
     uint32_t (*expandFile)(struct FormattedVolume* self, Path* path, void* fileData, uint32_t dataSize);
     FS_STATUS_CODE (*deleteDir)(struct FormattedVolume *self, Path* path);
     FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path* path);
-    bool (*isDir)(struct FormattedVolume* self, Path* path);
+    FS_STATUS_CODE (*isDir)(struct FormattedVolume* self, Path* path);
     char* (*toString)(struct FormattedVolume* self);
+    FileMetadata* (*getMetadata)(struct FormattedVolume* self, Path* path);
+    FS_STATUS_CODE (*renameFile)(struct FormattedVolume* self, Path* path, char* newName);
     FS_STATUS_CODE (*destroy)(struct FormattedVolume* self);
 } FormattedVolume;
 
@@ -114,8 +100,10 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
 
 FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path* path);
 FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path* path);
+FileMetadata* FAT16GetMetadata(FormattedVolume *self, Path* path);
+FS_STATUS_CODE FAT16Rename(FormattedVolume *self, Path* path, char* newName);
 char* FAT16ToTreeString(FormattedVolume* self);
-bool FAT16IsDir(FormattedVolume* self, Path* path);
+FS_STATUS_CODE FAT16IsDir(FormattedVolume* self, Path* path);
 FS_STATUS_CODE FAT16Destroy(FormattedVolume* self);
 
 

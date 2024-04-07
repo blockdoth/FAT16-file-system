@@ -1,17 +1,6 @@
 #include "FAT16_IO.h"
 
 
-void initCacheContinous(FormattedVolume* self, uint32_t cacheSize) {
-    FAT16CacheEntry* entries = malloc(cacheSize * sizeof(FAT16CacheEntry));
-    void* sectors = malloc(cacheSize * self->info->FAT16.bytesPerSector);
-    for (int i = 0; i < cacheSize; ++i) {
-        entries[i].age = 0;
-        entries[i].sectorPtr = 0;
-        entries[i].sector = sectors + (i * self->info->FAT16.bytesPerSector);
-    }
-    self->cache.FAT16 = (FAT16Cache){entries, cacheSize, 0};
-}
-
 void initCache(FormattedVolume* self, uint32_t cacheSize) {
     FAT16CacheEntry* entries = (FAT16CacheEntry*) malloc(cacheSize * sizeof(FAT16CacheEntry));
     for (int i = 0; i < cacheSize; ++i) {
@@ -21,7 +10,7 @@ void initCache(FormattedVolume* self, uint32_t cacheSize) {
 }
 
 void destroyCache(FormattedVolume* self){
-    //printf("Cache hits %u\n", self->cache.FAT16.totalCacheHits);
+
     FAT16CacheEntry* cache = self->cache.FAT16.cache;
     for (int i = 0; i < self->cache.FAT16.size; ++i) {
         free(cache[i].sector);
@@ -39,19 +28,20 @@ void wipeCache(FormattedVolume* self){
 }
 
 
-
-
 // A simple lookup table //TODO  make it a hashtable
 void* findSectorInCache(FormattedVolume* self, sector_ptr sector){
     FAT16CacheEntry* cache = self->cache.FAT16.cache;
     for (int i = 0; i < self->cache.FAT16.size; ++i) {
         FAT16CacheEntry entry = cache[i];
         if(entry.sectorPtr == sector){
-            entry.age++;
-            self->cache.FAT16.totalCacheHits++;
+            if(entry.age < (uint16_t) - 1){
+                entry.age++;
+            }
+            self->cache.FAT16.cacheHits++;
             return entry.sector;
         }
     }
+    self->cache.FAT16.cacheMisses++;
     return NULL;
 }
 
@@ -98,7 +88,7 @@ void* readSector(FormattedVolume* self, sector_ptr sector){
         return loadedSector;
     }
 }
-
+// TODO add COW
 FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size) {
     if(size > self->info->FAT16.bytesPerSector){
         return FS_OUT_OF_BOUNDS;

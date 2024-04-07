@@ -1,5 +1,4 @@
-#include "../fs/fs_tests.h"
-#include "../test_config.h"
+#include "../fs_tests.h"
 #include "test_framework.h"
 
 
@@ -131,39 +130,6 @@ void internal_assert_fail(const char *function_name, int line_number, char *mess
     exit(ASSERTION_FAILURE_EXITCODE);
 }
 
-
-
-
-void register_tests() {
-    #ifdef RAMDISK_TESTS
-    register_ramdisk_tests();
-    #endif
-
-    #ifdef FLASHDISK_TESTS
-    register_flashdisk_tests();
-    #endif
-
-    #ifdef VOLUME_TESTS
-    register_volume_tests();
-    #endif
-
-    #ifdef FAT16_TESTS
-    register_fat16_tests();
-    #endif
-
-    #ifdef FAT16_UTILS_TESTS
-    register_fat16_utils_tests();
-    #endif
-
-
-    #ifdef API_TESTS
-    register_api_tests();
-    #endif
-
-    #ifdef PROPERTY_TESTS
-    register_property_tests();
-    #endif
-}
 
 int main(int argc, char *argv[]) {
     register_tests();

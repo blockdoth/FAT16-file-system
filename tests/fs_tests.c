@@ -1,11 +1,6 @@
 #undef DEBUG_FAT16
 #include "fs_tests.h"
 
-#define MAX_NOT_NESTED_FILES 10
-#define MAX_NESTED_FILES 3
-#define SECTOR_SIZE 512
-#define SECTORS_PER_CLUSTER 64
-#define CLUSTER_COUNT 100
 
 
 void setupFormattedVolume(){
@@ -38,7 +33,7 @@ void makeFilesFlat(){
         free(file);
     }
 
-//    char* tree = fs_get_string("#R");
+//    char* tree = fs_tree("#R");
 //    printf("%s\n",tree);
     for (int i = 0; i < MAX_NOT_NESTED_FILES; i++) {
         assert_true(fs_file_exists(paths[i]) == FS_SUCCES);
@@ -87,7 +82,7 @@ void makeDirsNested(){
         paths[i] = strdup(path);
     }
 
-//    char* tree = fs_get_string("#R|");
+//    char* tree = fs_tree("#R|");
 //    printf("%s\n",tree);
     for (int i = 0; i < MAX_NOT_NESTED_FILES; i++) {
         assert_true(fs_is_dir(paths[i]) == true);
@@ -117,7 +112,7 @@ void makeMultipleNestedDirs(){
         writePointer += 10;
     }
 
-//    char* tree = fs_get_string("#R|");
+//    char* tree = fs_tree("#R|");
 //    printf("%s\n",tree);
     for (int i = 0; i < MAX_NESTED_FILES * MAX_NOT_NESTED_FILES; i++) {
         assert_true(fs_is_dir(paths[i]) == true);
@@ -266,6 +261,80 @@ void makeDeleteMakeFilesFlat(){
     fs_destroy(DRIVE_R);
 }
 
+void getMetaDataFlat(){
+    setupFormattedVolume();
+    uint32_t dataSize = 1;
+    char* data = randomString(dataSize);
+    char* path = "#R|small";
+    fs_create_file(path, data, dataSize);
+    FileMetadata* metadata = fs_get_metadata(path);
+    // + 3 to skip the base of the path and only match the name
+    assert_true(strcmp(metadata->name, path + 3) == 0);
+    assert_true(metadata->directory == 0);
+    free(metadata->name);
+    free(metadata);
+    free(data);
+    fs_destroy(DRIVE_R);
+}
+
+void getMetaDataNested(){
+    setupFormattedVolume();
+    uint32_t dataSize = 1;
+    char* data = randomString(dataSize);
+    char* dir = "#R|dir";
+    char* file = "#R|dir|file";
+    fs_create_dir(dir);
+    fs_create_file(file, data, dataSize);
+    FileMetadata* dirData = fs_get_metadata(dir);
+    FileMetadata* fileData = fs_get_metadata(file);
+    // + 3 to skip the base of the path and only match the name
+    assert_true(strcmp(dirData->name, dir + 3) == 0);
+    assert_true(strcmp(fileData->name, file + 7) == 0);
+    assert_true(dirData->directory == 1);
+    assert_true(fileData->directory == 0);
+    free(dirData->name);
+    free(dirData);
+    free(fileData->name);
+    free(fileData);
+    free(data);
+    fs_destroy(DRIVE_R);
+}
+
+
+void updateMetaDataFlat(){
+    setupFormattedVolume();
+    uint32_t dataSize = 1;
+    char* data = randomString(dataSize);
+    char* path = "#R|small";
+    fs_create_file(path, data, dataSize);
+    char* newName = "bigly";
+    fs_rename(path,newName);
+    FileMetadata* metadata = fs_get_metadata("#R|bigly");
+    assert_true(strcmp(metadata->name, newName) == 0);
+    assert_true(metadata->directory == 0);
+    free(metadata->name);
+    free(metadata);
+    free(data);
+    fs_destroy(DRIVE_R);
+}
+
+void updateMetaDataNested(){
+    setupFormattedVolume();
+    uint32_t dataSize = 1;
+    char* data = randomString(dataSize);
+    char* dir = "#R|dir";
+    char* file = "#R|dir|file";
+    fs_create_dir(dir);
+    fs_create_file(file, data, dataSize);
+    fs_rename(file,"smally");
+    FileMetadata* metadata = fs_get_metadata("#R|dir|smally");
+    assert_true(strcmp(metadata->name, "smally") == 0);
+    assert_true(metadata->directory == 0);
+    free(metadata->name);
+    free(metadata);
+    free(data);
+    fs_destroy(DRIVE_R);
+}
 
 void smallReadWrite(){
     setupFormattedVolume();
@@ -576,7 +645,48 @@ void bigUpdateOffsetSameSize(){
     fs_destroy(DRIVE_R);
 }
 
-void register_api_tests(){
+void gaytree(){
+    setupFormattedVolume();
+    uint32_t dataSize = 10;
+    char* data = randomString(dataSize);
+    fs_create_dir( "#R|rootDirA");
+    fs_create_dir( "#R|rootDirA|subDirA");
+    fs_create_dir( "#R|rootDirA|subDirA|subDirB");
+    fs_create_dir( "#R|rootDirA|subDirC");
+    fs_create_dir( "#R|rootDirD");
+
+    fs_create_file("#R|rootDirA|subDirA|fileA.txt", data, dataSize);
+    fs_create_file("#R|rootDirA|subDirA|subDirB|fileB.txt", data, dataSize);
+    fs_create_file("#R|rootDirA|subDirC|fileC.txt", data, dataSize);
+    fs_create_file("#R|rootDirD|fileC.txt", data, dataSize);
+    fs_create_file("#R|fileD", data, dataSize);
+    fs_create_file("#R|fileE", data, dataSize);
+    fs_create_file("#R|fileF", data, dataSize);
+
+    char* freshTree = fs_tree("#R|");
+    printf("%s",freshTree);
+    free(freshTree);
+
+    fs_delete_file("#R|fileE");
+    fs_delete_dir("#R|rootDirA|subDirA");
+    char* deletedTree = fs_tree("#R|");
+    printf("%s",deletedTree);
+    free(deletedTree);
+
+
+    fs_expand_file("#R|fileF", data, dataSize);
+    fs_update_file("#R|fileF", data, dataSize, 0);
+    fs_rename("#R|fileF","got em");
+    char* updatedTree = fs_tree("#R|");
+    printf("%s", updatedTree);
+    free(updatedTree);
+
+    free(data);
+    fs_destroy(DRIVE_R);
+}
+
+void register_tests(){
+    register_test(gaytree);
     register_test(bigUpdateOffsetSameSize);
     register_test(bigUpdateNoOffsetIncreaseSize);
     register_test(bigUpdateNoOffsetSameSize);
@@ -596,6 +706,11 @@ void register_api_tests(){
     register_test(bigReadWrite);
     register_test(biggerReadWrite);
     register_test(smallReadWrite);
+    register_test(updateMetaDataNested);
+    register_test(updateMetaDataFlat);
+    register_test(getMetaDataFlat);
+    register_test(getMetaDataNested);
+    register_test(getMetaDataFlat);
     register_test(makeDeleteMakeFilesFlat);
     register_test(deleteMultipleNestedDirs);
     register_test(deleteDirsNested);

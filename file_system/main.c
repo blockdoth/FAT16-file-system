@@ -1,13 +1,9 @@
 #include <stdio.h>
-
 #include "file_system_api.h"
-#include "file_system.h"
 
 #define GiB 1073741823 // Bytes
 
-
-//#R|define DEBUG_VOLUME // Enable debug mode
-
+// Only used for debugging and testing purposes
 
 void* rickRoll;
 void* helloWorld = "Hello World ";
@@ -54,7 +50,7 @@ int main() {
     }else{
         printf("File %s still exists\n", dir);
     }
-    char* tree = fs_get_string("#R|");
+    char* tree = fs_tree("#R|");
     printf("%s",tree);
 
     char* string = (char *) fs_read_file("#R|fileF");

@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #define ASSERTION_FAILURE_EXITCODE 47
+#define SEQUENTIAL
 
 #define register_test(f) register_test_internal(f, #f)
 #define assert_int_equals(x, y) internal_assert_int_equals(__extension__ __FUNCTION__, __LINE__, #x, x, #y, y)
@@ -23,8 +24,5 @@
 
 void register_tests();
 typedef void (*test_fp)();
-
-
-
 
 #endif

@@ -13,7 +13,6 @@ typedef enum VOLUME_TYPE{
     FLASH_DRIVE
 } VOLUME_TYPE;
 
-
 typedef struct RawVolume {
     void* volumeData;
     uint32_t volumeSize;
@@ -26,7 +25,7 @@ typedef struct RawVolume {
 // Initialize the actual rawVolume
 RawVolume* mount_volume(VOLUME_TYPE volumeType, uint64_t volumeSize);
 
-// Util
+// Checks if a write is within bounds of the allocated volume
 FS_STATUS_CODE bounds_check(RawVolume* self, uint32_t start_addr, uint32_t dataSize);
 
 #endif //FILE_SYSTEM_VOLUME_H

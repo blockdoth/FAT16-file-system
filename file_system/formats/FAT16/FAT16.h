@@ -15,12 +15,12 @@
 #define FAT16_ENTRY_SIZE 32
 #define FAT16_ENTRY_BASE_NAME_LENGTH 11
 
-#define MAX_PAGES_IN_CACHE 100
+#define MAX_PAGES_IN_CACHE 1000
 
 #define FAT16_EOF 0xF8FF
 
-
-typedef struct BootSector {
+// Based on BigHards spec
+typedef struct {
     uint8_t jmpBoot[3];
     unsigned char OEM_Name[8];
     uint16_t bytesPerSector;
@@ -43,7 +43,8 @@ typedef struct BootSector {
     unsigned char filesystemType[11];
 } BootSector; // Total volumeSize: 90 bytes
 
-typedef struct FAT16File {
+// Based on MediumStiffs spec
+typedef struct {
     unsigned char name[11];
     uint8_t attributes;
     uint8_t reserved;
@@ -59,8 +60,8 @@ typedef struct FAT16File {
 } FAT16File; // Total volumeSize: 32 bytes
 
 
-
-typedef struct FAT16FileNameExtension{
+// Based on MicroSofts spec
+typedef struct{
     uint8_t order;
     unsigned char name1[10];
     uint8_t attributes;
@@ -70,8 +71,6 @@ typedef struct FAT16FileNameExtension{
     uint16_t firstClusterNumberLowWord;
     unsigned char name3[4];
 } FAT16FileNameExtension; // Total volumeSize: 32 bytes
-
-// ^ Based on "Microsoft Extensible Firmware Initiative FAT32 File System Specification"
 
 enum DirectoryAttributes {
     ATTR_READONLY  = 1 << 0,
@@ -83,5 +82,6 @@ enum DirectoryAttributes {
     ATTR_LONGNAME  = 0xF
 };
 
+// ^ Based on "Microsoft Extensible Firmware Initiative FAT32 File System Specification"
 
 #endif //FILE_SYSTEM_FAT16_H
