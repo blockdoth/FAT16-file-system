@@ -57,9 +57,9 @@ sector_ptr findFreeClusterInFAT(FormattedVolume* self);
 sector_ptr findSecondToLastCluster(FormattedVolume *self, sector_ptr fileClusterStart);
 
 // === Conversions ===
-FAT16File convertMetadataToFAT16File(FileMetadata* fileMetadata);
-FileMetadata* convertFAT16FileToMetadata(FAT16File fat16File);
-uint8_t convertToDirAttributes(FileMetadata* file);
+FAT16File convertMetadataToFAT16File(file_metadata* fileMetadata);
+file_metadata* convertFAT16FileToMetadata(FAT16File fat16File);
+uint8_t convertToDirAttributes(file_metadata* file);
 
 // === initializations ===
 BootSector initBootSector(uint32_t volumeSize, FAT16Config fat16Config);

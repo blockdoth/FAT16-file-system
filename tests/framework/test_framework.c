@@ -1,4 +1,3 @@
-#include "../fs_tests.h"
 #include "test_framework.h"
 
 
@@ -132,7 +131,12 @@ void internal_assert_fail(const char *function_name, int line_number, char *mess
 
 
 int main(int argc, char *argv[]) {
-    register_tests();
+#ifdef TEST_FS
+    register_fs_tests();
+#endif
+#ifdef TEST_F
+    register_f_tests();
+#endif
     run_suite();
     show_results();
     unregister_tests();

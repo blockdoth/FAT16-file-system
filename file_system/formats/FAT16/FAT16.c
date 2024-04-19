@@ -64,7 +64,7 @@ FormattedVolume *formatFAT16Volume(RawVolume *volume, FAT16Config fat16Config) {
     return formattedVolume;
 }
 
-FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path* path, FileMetadata* fileMetadata, void* fileData){
+FS_STATUS_CODE FAT16WriteFile(FormattedVolume * self, Path* path, file_metadata* fileMetadata, void* fileData){
     sector_ptr entryTable = resolveFileTable(self, path);
     if(checkNamingCollusion(self, entryTable, fileMetadata->name, false) == true) return FS_FILE_ALREADY_EXISTS;
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata); // Consumes fileMetadata
@@ -212,7 +212,7 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
 }
 
 
-FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path* path, FileMetadata* fileMetadata){
+FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path* path, file_metadata* fileMetadata){
     sector_ptr entryTable = resolveFileTable(self, path);
     if(checkNamingCollusion(self, entryTable, fileMetadata->name, true) == true) return FS_DIRECTORY_ALREADY_EXISTS;
     FAT16File fat16File = convertMetadataToFAT16File(fileMetadata); // Consumes fileMetadata
@@ -285,7 +285,7 @@ void* FAT16ReadFileSection(FormattedVolume* self, Path* path, uint32_t offset, u
     if(bytesLeftToRead < self->info->FAT16.bytesPerSector){
         readSize = bytesLeftToRead; // Prevent unwanted data being read
     }
-    void* chunk = malloc(self->info->FAT16.bytesPerSector);
+    Sector chunk = malloc(self->info->FAT16.bytesPerSector);
     readClusterSector(self, currentCluster, sectorInCluster, chunk, self->info->FAT16.bytesPerSector);
     memcpy(file + dataPointer, chunk + offsetInSector, readSize);
     free(chunk);
@@ -356,7 +356,7 @@ char* FAT16ToTreeString(FormattedVolume* self){
     return printTreeToString(self);
 }
 
-FileMetadata* FAT16GetMetadata(FormattedVolume *self, Path* path){
+file_metadata* FAT16GetMetadata(FormattedVolume *self, Path* path){
     sector_ptr entryTable = resolveFileTable(self, path);
     char* name = path->path[path->depth];
     FAT16File fat16File = findEntryInTable(self, entryTable, name);

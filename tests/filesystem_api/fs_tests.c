@@ -1,12 +1,10 @@
 #undef DEBUG_FAT16
 #include "fs_tests.h"
+#include "../framework/test_framework.h"
 
 
 
-void setupFormattedVolume(){
-    RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB/4);
-    fs_format(raw_volume, (FormatSpecifier){FAT16,{SECTOR_SIZE,SECTORS_PER_CLUSTER}}, DRIVE_R);
-}
+
 
 void formatVolumeTest(){
     RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB/4);
@@ -267,7 +265,7 @@ void getMetaDataFlat(){
     char* data = randomString(dataSize);
     char* path = "#R|small";
     fs_create_file(path, data, dataSize);
-    FileMetadata* metadata = fs_get_metadata(path);
+    file_metadata* metadata = fs_get_metadata(path);
     // + 3 to skip the base of the path and only match the name
     assert_true(strcmp(metadata->name, path + 3) == 0);
     assert_true(metadata->directory == 0);
@@ -285,8 +283,8 @@ void getMetaDataNested(){
     char* file = "#R|dir|file";
     fs_create_dir(dir);
     fs_create_file(file, data, dataSize);
-    FileMetadata* dirData = fs_get_metadata(dir);
-    FileMetadata* fileData = fs_get_metadata(file);
+    file_metadata* dirData = fs_get_metadata(dir);
+    file_metadata* fileData = fs_get_metadata(file);
     // + 3 to skip the base of the path and only match the name
     assert_true(strcmp(dirData->name, dir + 3) == 0);
     assert_true(strcmp(fileData->name, file + 7) == 0);
@@ -309,7 +307,7 @@ void updateMetaDataFlat(){
     fs_create_file(path, data, dataSize);
     char* newName = "bigly";
     fs_rename(path,newName);
-    FileMetadata* metadata = fs_get_metadata("#R|bigly");
+    file_metadata* metadata = fs_get_metadata("#R|bigly");
     assert_true(strcmp(metadata->name, newName) == 0);
     assert_true(metadata->directory == 0);
     free(metadata->name);
@@ -327,7 +325,7 @@ void updateMetaDataNested(){
     fs_create_dir(dir);
     fs_create_file(file, data, dataSize);
     fs_rename(file,"smally");
-    FileMetadata* metadata = fs_get_metadata("#R|dir|smally");
+    file_metadata* metadata = fs_get_metadata("#R|dir|smally");
     assert_true(strcmp(metadata->name, "smally") == 0);
     assert_true(metadata->directory == 0);
     free(metadata->name);
@@ -686,7 +684,7 @@ void gaytree(){
     fs_destroy(DRIVE_R);
 }
 
-void register_tests(){
+void register_fs_tests(){
 //    register_test(gaytree);
     register_test(bigUpdateOffsetSameSize);
     register_test(bigUpdateNoOffsetIncreaseSize);

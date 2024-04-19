@@ -1,6 +1,6 @@
 #ifndef FILE_SYSTEM_API_H
 #define FILE_SYSTEM_API_H
-#include "volume/volume.h"
+#include "../volume/volume.h"
 
 typedef struct FileMetadata {
     char* name;
@@ -18,7 +18,7 @@ typedef struct FileMetadata {
     uint16_t timeOfLastWrite;
     uint16_t dateOfLastWrite;
     uint32_t fileSize;
-} FileMetadata;
+} file_metadata;
 
 
 typedef enum FILESYSTEM_TYPE{
@@ -49,7 +49,7 @@ FS_STATUS_CODE fs_create_file(char* path, void* data, uint32_t size);
 void* fs_read_file(char* path);
 void* fs_read_file_section(char* path, uint32_t offset, uint32_t size);
 uint32_t fs_expand_file(char* path, void* new_data, uint32_t new_size);
-uint32_t fs_update_file(char* path, void* new_data, uint32_t new_size, uint32_t offset);
+uint32_t fs_update_file(char* path, void* new_data, uint32_t new_data_size, uint32_t offset);
 FS_STATUS_CODE fs_delete_file(char* path);
 FS_STATUS_CODE fs_file_exists(char* path);
 
@@ -60,10 +60,12 @@ FS_STATUS_CODE fs_dir_exists(char* path);
 FS_STATUS_CODE fs_is_dir(char* path);
 
 // === Metadata ===
-FileMetadata* fs_get_metadata(char* path);
+file_metadata* fs_get_metadata(char* path);
 FS_STATUS_CODE fs_rename(char* path, char* new_name);
 
 // === Misc ===
 char* fs_tree(char* path);
 
 #endif //FILE_SYSTEM_API_H
+
+

@@ -10,7 +10,7 @@ void initCache(FormattedVolume* self, uint32_t cacheSize) {
 }
 
 void destroyCache(FormattedVolume* self){
-
+    //printCacheUsage(self);
     FAT16CacheEntry* cache = self->cache.FAT16.cache;
     for (int i = 0; i < self->cache.FAT16.size; ++i) {
         free(cache[i].sector);
@@ -78,7 +78,6 @@ void insertSectorInCache(FormattedVolume* self, sector_ptr sectorPtr, void* sect
 void readSector(FormattedVolume *self, sector_ptr sector, void *buffer, uint32_t readSize) {
     uint32_t sectorSize = self->info->FAT16.bytesPerSector;
     if(readSize > sectorSize){
-        printf("Should not happen");
         readSize = sectorSize;
     }
     void* foundSector = findSectorInCache(self, sector);
@@ -90,7 +89,6 @@ void readSector(FormattedVolume *self, sector_ptr sector, void *buffer, uint32_t
         memcpy(buffer, chunk, readSize);
         free(chunk);
     }
-//    printf("reading from %u\n", sector * sectorSize);
 
 }
 // TODO add COW
@@ -99,7 +97,6 @@ FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data,
     if(size > sectorSize){
         return FS_OUT_OF_BOUNDS;
     }
-//    printf("writing to %u\n", sector * sectorSize);
     invalidateSectorInCache(self, sector);
     return self->rawVolume->write(self->rawVolume, data, sector * sectorSize, size);
 }

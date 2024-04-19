@@ -271,7 +271,7 @@ void printCache(FormattedVolume* self) {
 }
 
 
-void reportCacheUse(FormattedVolume* self){
+void printCacheUsage(FormattedVolume* self){
     uint32_t hits = self->cache.FAT16.cacheHits;
     uint32_t misses = self->cache.FAT16.cacheMisses;
     uint32_t total = hits + misses;

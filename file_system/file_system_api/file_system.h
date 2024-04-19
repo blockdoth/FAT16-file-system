@@ -1,12 +1,14 @@
 #ifndef FILE_SYSTEM_H
 #define FILE_SYSTEM_H
 
-#include "volume/volume.h"
+#include "../volume/volume.h"
 #include "file_system_api.h"
-#include "formats/FAT16/FAT16.h"
+#include "../file_api/file_api.h"
 
+#include "../formats/FAT16/FAT16.h"
 #include <string.h>
 #include <malloc.h>
+
 
 
 typedef struct FATVolumeInfo {
@@ -56,8 +58,8 @@ typedef struct FormattedVolume {
     RawVolume* rawVolume;
     VolumeInfo* info;
     Cache cache;
-    FS_STATUS_CODE (*createFile)(struct FormattedVolume* self, Path* path, FileMetadata* fileMetadata, void* fileData);
-    FS_STATUS_CODE (*createDir)(struct FormattedVolume* self, Path* path, FileMetadata* fileMetadata);
+    FS_STATUS_CODE (*createFile)(struct FormattedVolume* self, Path* path, file_metadata* fileMetadata, void* fileData);
+    FS_STATUS_CODE (*createDir)(struct FormattedVolume* self, Path* path, file_metadata* fileMetadata);
     void* (*readFile)(struct FormattedVolume* self, Path* path);
     void* (*readFileSection)(struct FormattedVolume* self, Path* path, uint32_t offset, uint32_t size);
     FS_STATUS_CODE (*checkFile)(struct FormattedVolume* self, Path* path);
@@ -68,7 +70,7 @@ typedef struct FormattedVolume {
     FS_STATUS_CODE (*deleteFile)(struct FormattedVolume* self, Path* path);
     FS_STATUS_CODE (*isDir)(struct FormattedVolume* self, Path* path);
     char* (*toString)(struct FormattedVolume* self);
-    FileMetadata* (*getMetadata)(struct FormattedVolume* self, Path* path);
+    file_metadata* (*getMetadata)(struct FormattedVolume* self, Path* path);
     FS_STATUS_CODE (*renameFile)(struct FormattedVolume* self, Path* path, char* newName);
     FS_STATUS_CODE (*destroy)(struct FormattedVolume* self);
 } FormattedVolume;
@@ -78,19 +80,19 @@ uint16_t getCurrentTimeMs();
 uint16_t getCurrentTime();
 uint16_t getCurrentDate();
 
-FileMetadata* initFile(char* path, uint32_t file_size);
-void destroyMetaData(FileMetadata* metadata);
+file_metadata* initFile(char* path, uint32_t file_size);
+void destroyMetaData(file_metadata* metadata);
 
 char* extractName(char* path);
 FS_STATUS_CODE checkValidPath(char* path);
 Path* parsePath(char* path);
 void destroyPath(Path* path);
-DriveID parseDriveId(char* id);
-// FILE api
+DriveID parseDriveId(const char* id);
+// DFILE api
 
 FormattedVolume *formatFAT16Volume(RawVolume *volume, FAT16Config fat16Config);
-FS_STATUS_CODE FAT16WriteFile(FormattedVolume* self, Path* path, FileMetadata* fileMetadata, void* fileData);
-FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path* path, FileMetadata* fileMetadata);
+FS_STATUS_CODE FAT16WriteFile(FormattedVolume* self, Path* path, file_metadata* fileMetadata, void* fileData);
+FS_STATUS_CODE FAT16WriteDir(FormattedVolume* self, Path* path, file_metadata* fileMetadata);
 void* FAT16ReadFile(FormattedVolume* self, Path* path);
 void* FAT16ReadFileSection(FormattedVolume* self, Path* path, uint32_t offset, uint32_t chunkSize);
 FS_STATUS_CODE FAT16CheckFile(FormattedVolume* self, Path* path);
@@ -100,7 +102,7 @@ uint32_t FAT16ExpandFile(FormattedVolume* self, Path* path, void* newData, uint3
 
 FS_STATUS_CODE FAT16DeleteFile(FormattedVolume* self, Path* path);
 FS_STATUS_CODE FAT16DeleteDir(FormattedVolume *self, Path* path);
-FileMetadata* FAT16GetMetadata(FormattedVolume *self, Path* path);
+file_metadata* FAT16GetMetadata(FormattedVolume *self, Path* path);
 FS_STATUS_CODE FAT16Rename(FormattedVolume *self, Path* path, char* newName);
 char* FAT16ToTreeString(FormattedVolume* self);
 FS_STATUS_CODE FAT16IsDir(FormattedVolume* self, Path* path);

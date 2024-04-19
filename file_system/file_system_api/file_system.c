@@ -2,14 +2,19 @@
 
 FormattedVolume* drives[maxDriveCount];
 
+
+
+
 FS_STATUS_CODE fs_format(RawVolume *raw_volume, FormatSpecifier formatSpecifier, DriveID drive_id) {
     switch (formatSpecifier.filesystemType) {
         case FAT16:
             drives[drive_id] = formatFAT16Volume(raw_volume, formatSpecifier.formatConfig.fat16Config);
-            return FS_SUCCES;
+            break;
         default:
+            return FS_FORMAT_NOT_SUPPORTED;
     }
-    return FS_FORMAT_NOT_SUPPORTED;
+    initFileTable();
+    return FS_SUCCES;
 }
 
 void fs_destroy(DriveID drive_id) {
@@ -23,7 +28,7 @@ void fs_destroy(DriveID drive_id) {
 FS_STATUS_CODE fs_create_file(char* path, void* data, uint32_t size){
     if(!checkValidPath(path)) return FS_INVALID_PATH;
     Path* resolvedPath = parsePath(path);
-    FileMetadata* fileMetadata = initFile(path, size);
+    file_metadata* fileMetadata = initFile(path, size);
     FormattedVolume* currentDrive = drives[resolvedPath->driveId];
     FS_STATUS_CODE statusCode = currentDrive->createFile(currentDrive, resolvedPath, fileMetadata, data);
     destroyPath(resolvedPath);
@@ -35,7 +40,7 @@ FS_STATUS_CODE fs_create_file(char* path, void* data, uint32_t size){
 FS_STATUS_CODE fs_create_dir(char* path){
     if(!checkValidPath(path)) return FS_INVALID_PATH;
     Path* resolvedPath = parsePath(path);
-    FileMetadata* fileMetadata = initFile(path, 0);
+    file_metadata* fileMetadata = initFile(path, 0);
     fileMetadata->directory = 1;
     FormattedVolume* currentDrive = drives[resolvedPath->driveId];
     FS_STATUS_CODE statusCode = currentDrive->createDir(currentDrive, resolvedPath,  fileMetadata);
@@ -83,11 +88,11 @@ FS_STATUS_CODE fs_dir_exists(char* path){
     return statusCode;
 }
 
-uint32_t fs_update_file(char* path, void* new_data, uint32_t new_size, uint32_t offset){
+uint32_t fs_update_file(char* path, void* new_data, uint32_t new_data_size, uint32_t offset){
     if(!checkValidPath(path)) return FS_INVALID_PATH;
     Path* resolvedPath = parsePath(path);
     FormattedVolume* currentDrive = drives[resolvedPath->driveId];
-    uint32_t newFileSize = currentDrive->updateFile(currentDrive, resolvedPath, new_data, new_size, offset);
+    uint32_t newFileSize = currentDrive->updateFile(currentDrive, resolvedPath, new_data, new_data_size, offset);
     destroyPath(resolvedPath);
     return newFileSize;
 }
@@ -102,9 +107,9 @@ uint32_t fs_expand_file(char* path, void* new_data, uint32_t new_size){
 }
 
 
-FileMetadata* initFile(char* path, uint32_t file_size){
+file_metadata* initFile(char* path, uint32_t file_size){
     char* name = extractName(path);
-    FileMetadata* fileMetadata = (FileMetadata*) malloc(sizeof(FileMetadata));
+    file_metadata* fileMetadata = (file_metadata*) malloc(sizeof(file_metadata));
     fileMetadata->name = name;
     fileMetadata->fileSize = file_size;
     fileMetadata->read_only = 0;
@@ -174,11 +179,11 @@ char* fs_tree(char* path){
     return string;
 }
 
-FileMetadata* fs_get_metadata(char* path){
+file_metadata* fs_get_metadata(char* path){
     if(!checkValidPath(path)) return FS_INVALID_PATH;
     Path* resolvedPath = parsePath(path);
     FormattedVolume* currentDrive = drives[resolvedPath->driveId];
-    FileMetadata* metadata = currentDrive->getMetadata(currentDrive, resolvedPath);
+    file_metadata* metadata = currentDrive->getMetadata(currentDrive, resolvedPath);
     destroyPath(resolvedPath);
     return metadata;
 }
@@ -193,7 +198,7 @@ FS_STATUS_CODE fs_rename(char* path, char* new_name){
 }
 
 
-DriveID parseDriveId(char* id){
+DriveID parseDriveId(const char* id){
     switch (*id) {
         case 'D':
             return DRIVE_D;
@@ -252,9 +257,10 @@ void destroyPath(Path* path){
     }
     free(path->path);
     free(path);
+    destroyFileTable();
 }
 
-void destroyMetaData(FileMetadata* metadata){
+void destroyMetaData(file_metadata* metadata){
     free(metadata->name);
     free(metadata);
 }

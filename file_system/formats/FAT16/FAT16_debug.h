@@ -2,7 +2,6 @@
 #define FILE_SYSTEM_FAT16_DEBUG_H
 
 #include "FAT16_utility.h"
-#include <stdio.h>
 #include <malloc.h>
 #include <string.h>
 
@@ -34,5 +33,7 @@ void printTree(FormattedVolume* self);
 char* printTreeToString(FormattedVolume* self);
 // Prints the content of the cache TODO make it pretty
 void printCache(FormattedVolume* self);
+// Report cache hits and ratio
+void printCacheUsage(FormattedVolume* self);
 
 #endif //FILE_SYSTEM_FAT16_DEBUG_H

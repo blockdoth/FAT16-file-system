@@ -36,10 +36,10 @@ char* generatePath() {
     return path;
 }
 
-bool memCompare(char* fileA, char* fileB, uint32_t size){
+bool memCompare(char* memA, char* memB, uint32_t size){
     for (uint32_t i = 0; i < size; ++i) {
-        char* a = fileA + i;
-        char* b = fileB + i;
+        char* a = memA + i;
+        char* b = memB + i;
         if(*a != *b){
             printf("Found difference at %u", i);
             return false;
@@ -54,4 +54,9 @@ void mergeData(char *initialData, char *updatedData, uint32_t dataSize, uint32_t
             initialData[i] = updatedData[i - offset];
         }
     }
+}
+
+void setupFormattedVolume(){
+    RawVolume* raw_volume = mount_volume(RAM_DISK,  GiB/8);
+    fs_format(raw_volume, (FormatSpecifier){FAT16,{SECTOR_SIZE,SECTORS_PER_CLUSTER}}, DRIVE_R);
 }
