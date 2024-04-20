@@ -5,7 +5,7 @@
 #include "../../file_system/file_system_api/file_system_api.h"
 #include "../../file_system/common_types.h"
 #include "../../file_system/formats/FAT16/FAT16_IO.h"
-#include "../utils/test_utils.h"
+#include "../framework/test_utils.h"
 
 #define MAX_NOT_NESTED_FILES 1
 #define MAX_NESTED_FILES 3

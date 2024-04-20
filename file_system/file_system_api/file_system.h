@@ -3,7 +3,7 @@
 
 #include "../volume/volume.h"
 #include "file_system_api.h"
-#include "../file_api/file_api.h"
+#include "../file_api/file_table.h"
 
 #include "../formats/FAT16/FAT16.h"
 #include <string.h>

@@ -2,7 +2,95 @@
 // Created by pepij on 18/04/2024. Birthday :)
 //
 #include "file_api.h"
-#include "../file_system_api/file_system_api.h"
+#include "file_table.h"
+
+static FiletableEntry* fileTable[FILETABLE_SIZE];
+
+void flushFile(FiletableEntry* entry){
+    DFILE* stat = entry->stat;
+    if(stat->leftDiffRange == -1 || stat->rightDiffRange == 0) return;
+    uint32_t newDataSize = stat->rightDiffRange - stat->leftDiffRange;
+    if(stat->size == stat->leftDiffRange){
+        fs_expand_file(entry->path, entry->file,newDataSize);
+    }else{
+        fs_update_file(entry->path, entry->file + stat->leftDiffRange, newDataSize ,stat->leftDiffRange);
+    }
+}
+
+FD dfopen(char* path, PERMS perms){
+    if(!fs_file_exists(path)) return -1; // TODO error handling
+    void* file = fs_read_file(path); //TODO streaming
+    return addFileTableEntry(file, path);
+}
+
+
+void dfclose(FD fd){
+    FiletableEntry* entry = fileTable[fd];
+    flushFile(entry);
+    free(entry->stat);
+    entry->free = true;
+    free(entry->file);
+}
+
+void dfflush(FD fd){
+    flushFile(fileTable[fd]);
+}
+
+
+
+void dfrawread(FD fd, void* buffer, uint32_t size, uint32_t offset){
+    FiletableEntry* entry = fileTable[fd]; //TODO error handling
+    memcpy(buffer, entry->file + offset, size);
+}
+char dfgetc(FD fd){
+    FiletableEntry* entry = fileTable[fd];
+    DFILE* stat = entry->stat;
+    char temp = ((char*) entry->file)[stat->pos++];
+    return temp;
+}
+//Gets a string of length length or until '\0' when length = -1
+char* dfgetstr(FD fd, uint32_t length){
+    FiletableEntry* entry = fileTable[fd];
+    char* string = (char*) malloc(length + 1);
+    memcpy(string, entry->file + entry->stat->pos, length);
+    string[length] = '\0';
+    entry->stat->pos += length;
+    return string;
+}
+
+void dfrawwrite(FD fd, void* src, uint32_t size, uint32_t offset){
+    FiletableEntry* entry = fileTable[fd];
+    memcpy(entry->file + offset, src, size);
+    entry->stat->size += size;
+    updateDiffRange(entry, offset, offset+size);
+    writeFile(entry);
+}
+
+void dfcatc(FD fd, char c){
+    FiletableEntry* entry = fileTable[fd];
+    DFILE* stat = entry->stat;
+    resizeFile(entry, stat->size + 1);
+    ((char*) entry->file)[stat->pos] = c;
+    updateDiffRange(entry, stat->pos, stat->pos + 1);
+    stat->pos++;
+    writeFile(entry);
+}
+
+void dfcatstr(FD fd, char* str, uint32_t length){
+    FiletableEntry* entry = fileTable[fd];
+    DFILE* stat = entry->stat;
+    resizeFile(entry, stat->size + length);
+    memcpy(entry->file + stat->pos, str, length);
+    updateDiffRange(entry, stat->pos, stat->pos + length);
+    stat->pos += length;
+    writeFile(entry);
+}
+
+void dfprintf(char* str, uint32_t size){
+    //TODO
+}
+
+
 
 
 FD addFileTableEntry(void* file, char* path){
@@ -26,7 +114,6 @@ FD addFileTableEntry(void* file, char* path){
     return i;
 }
 
-
 void initFileTable(){
     for (int i = 0; i < FILETABLE_SIZE; ++i) {
         FiletableEntry* entry = (FiletableEntry*)malloc(sizeof(FiletableEntry));
@@ -37,9 +124,11 @@ void initFileTable(){
         } else{
             entry->free = true;
         }
+        entry->bufferedWrites = 0;
         fileTable[i] = entry;
     }
 }
+
 void destroyFileTable(){
     for (int i = 3; i < FILETABLE_SIZE; ++i) {
 //        free(fileTable[i]->stat);
@@ -47,12 +136,6 @@ void destroyFileTable(){
 //        free(fileTable[i]->file);
 //        free(fileTable[i]);
     }
-}
-
-void flushFile(FiletableEntry* entry){
-    DFILE* stat = entry->stat;
-    if(stat->leftDiffRange == -1 || stat->rightDiffRange == 0) return;
-    fs_update_file(entry->path, entry->file+stat->leftDiffRange, stat->rightDiffRange,stat->leftDiffRange);
 }
 
 void updateDiffRange(FiletableEntry* entry, uint32_t leftRange, uint32_t rightRange){
@@ -65,58 +148,20 @@ void updateDiffRange(FiletableEntry* entry, uint32_t leftRange, uint32_t rightRa
     }
 }
 
-FD dfopen(char* path, PERMS perms){
-    if(!fs_file_exists(path)) return -1; // TODO error handling
-    void* file = fs_read_file(path); //TODO streaming
-    return addFileTableEntry(file, path);
-}
-
-
-void dfclose(FD fd){
-    FiletableEntry* entry = fileTable[fd];
-    flushFile(entry);
-    free(entry->stat);
-    entry->free = true;
-    free(entry->file);
-}
-
-void dfflush(FD fd){
-    FiletableEntry* entry = fileTable[fd];
-    flushFile(entry);
-}
-
-void dfrawread(FD fd, void* buffer, uint32_t size, uint32_t offset){
-    FiletableEntry* entry = fileTable[fd]; //TODO error handling
-    memcpy(buffer, entry->file + offset, size);
-}
-char dfgetc(FD fd){
-    FiletableEntry* entry = fileTable[fd];
-    DFILE* stat = entry->stat;
-    char temp = ((char*) entry->file)[stat->pos++];
-    return temp;
-}
-//Gets a string of length n or until '\0' when n = -1
-char* dfgetstr(FD fd, uint32_t n){
-    FiletableEntry* entry = fileTable[fd];
-    char* string = (char*) malloc(n + 1);
-    memcpy(string, entry->file + entry->stat->pos, n);
-    string[n] = '\0';
-    entry->stat->pos += n;
-    return string;
-}
-
-#define MAX_BUFFERED_WRITES 5
-uint8_t writeCount;
-void dfrawwrite(FD fd, void* src, uint32_t size, uint32_t offset){
-    FiletableEntry* entry = fileTable[fd];
-    memcpy(entry->file + offset, src, size);
-    writeCount++;
-    updateDiffRange(entry, offset, offset+size);
-    if(writeCount > MAX_BUFFERED_WRITES){
-        writeCount = 0;
+void writeFile(FiletableEntry* entry){
+    if(entry->bufferedWrites++ > MAX_BUFFERED_WRITES){
+        entry->bufferedWrites = 0;
         flushFile(entry);
     }
 }
-void dfprintf(FD fd, char* str, uint32_t size){
 
+
+void resizeFile(FiletableEntry* entry, uint32_t newSize){
+    if (newSize > entry->stat->size){
+        void* newFile = malloc(newSize);
+        memcpy(newFile, entry->file, entry->stat->size);
+        free(entry->file);
+        entry->file = newFile; // TODO make this not bad
+        entry->stat->size = newSize;
+    }
 }

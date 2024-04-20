@@ -9,6 +9,11 @@ FS_STATUS_CODE writeClusterSector(FormattedVolume *self, cluster_ptr cluster, se
 }
 
 void writeAlignedSectors(FormattedVolume *self, void *newData, uint32_t bytesLeftToWrite, uint32_t currentDataPointer, sector_ptr currentCluster) {
+    if (bytesLeftToWrite == 0){ // Claims a cluster even though the file is empty
+        // TODO handle this in the update and expand functions in order to prevent this waste
+        writeFATS(self,currentCluster - self->info->FAT16.dataSectionStart, FAT16_EOF);
+        return;
+    }
     while (bytesLeftToWrite > 0){
         uint32_t sectorInCluster = 0;
         uint32_t writeSize = self->info->FAT16.bytesPerSector;
@@ -194,15 +199,12 @@ uint16_t readFATS(FormattedVolume* self, uint16_t index){
     uint32_t sectorOffset = index / self->info->FAT16.bytesPerSector;
     uint32_t offsetInSector = (index % self->info->FAT16.bytesPerSector) * 2;
 
-    Sector sectorFAT1 = malloc(self->info->FAT16.bytesPerSector);
-    Sector sectorFAT2 = malloc(self->info->FAT16.bytesPerSector);
-    readSector(self, self->info->FAT16.FAT1Start + sectorOffset, sectorFAT1, self->info->FAT16.bytesPerSector);
-    readSector(self, self->info->FAT16.FAT2Start + sectorOffset, sectorFAT2, self->info->FAT16.bytesPerSector);
-    uint16_t FAT1 = *(uint16_t*) (sectorFAT1 + offsetInSector); // Directly cast from sector to FAT entry
-    uint16_t FAT2 = *(uint16_t*) (sectorFAT2 + offsetInSector);
-
-    free(sectorFAT1);
-    free(sectorFAT2);
+    Sector sectorFAT = malloc(self->info->FAT16.bytesPerSector); // Is reused for both FAT tables
+    readSector(self, self->info->FAT16.FAT1Start + sectorOffset, sectorFAT, self->info->FAT16.bytesPerSector);
+    uint16_t FAT1 = *(uint16_t*) (sectorFAT + offsetInSector); // Directly cast from sector to FAT entry
+    readSector(self, self->info->FAT16.FAT2Start + sectorOffset, sectorFAT, self->info->FAT16.bytesPerSector);
+    uint16_t FAT2 = *(uint16_t*) (sectorFAT + offsetInSector);
+    free(sectorFAT);
     if(FAT1 != FAT2){
         printf("FATS are out of sync, returning FAT1\n");
     }

@@ -91,7 +91,7 @@ void readSector(FormattedVolume *self, sector_ptr sector, void *buffer, uint32_t
     }
 
 }
-// TODO add COW
+
 FS_STATUS_CODE writeSector(FormattedVolume *self, sector_ptr sector, void *data, uint32_t size) {
     uint32_t sectorSize = self->info->FAT16.bytesPerSector;
     if(size > sectorSize){

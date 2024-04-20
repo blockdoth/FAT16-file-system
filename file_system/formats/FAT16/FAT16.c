@@ -246,7 +246,7 @@ void* FAT16ReadFile(FormattedVolume* self, Path* path) {
     uint16_t currentCluster = fat16File.fileClusterStart;
     uint32_t bytesLeftToRead = fat16File.fileSize;
     uint16_t readSize = self->info->FAT16.bytesPerSector;
-
+    if (bytesLeftToRead == 0) return file;
     do{ // Do while loop my beloved
         uint8_t sectorInCluster = 0;
         while(bytesLeftToRead > 0 && sectorInCluster < self->info->FAT16.sectorsPerCluster){
